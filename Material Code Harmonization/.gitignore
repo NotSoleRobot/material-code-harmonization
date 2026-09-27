@@ -1,0 +1,33 @@
+# Build outputs
+frontend/node_modules/
+frontend/dist/
+material-master-backend/target/
+
+# Local demo runtime
+material-master-backend/data/
+.local-demo-logs/
+
+# ML model artifacts — large binaries that should be reproduced via
+# matching-service/scripts/train.py. Currently tracked for the demo
+# (the pre-trained models are needed for a clean clone to work).
+# Uncomment the next line to stop tracking them once CI retraining is set up:
+# matching-service/models/
+
+# Generated training data — reproducible from matching-service/src/data_generation/
+matching-service/data/generated/
+
+# Dead SQL files (superseded by Flyway)
+material-master-backend/src/main/resources/data.sql
+material-master-backend/src/main/resources/schema.sql
+
+# Python caches and local environments
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Editors and OS metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

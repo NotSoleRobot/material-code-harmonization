@@ -1,0 +1,376 @@
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useSearchParams, Link } from "react-router-dom";
+import { api } from "../services/api";
+import { useAuth } from "../context/useAuth";
+import { useTranslation } from "react-i18next";
+import {
+  Search,
+  Download,
+  PlusCircle,
+  Eye,
+  BookOpen,
+  FileSpreadsheet,
+} from "lucide-react";
+import { CodeChip } from "./common/CodeChip";
+import { LoadingSkeleton } from "./common/LoadingSkeleton";
+import { ErrorPanel } from "./common/ErrorPanel";
+import { Table } from "./common/Table";
+
+export function CatalogView() {
+  const { user } = useAuth();
+  const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const query = searchParams.get("q") || "";
+  const selectedCategory = searchParams.get("category") || "ALL";
+  const viewMode = searchParams.get("view") || "canonical"; // 'canonical' or 'crossref'
+
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState("csv");
+  const [exportError, setExportError] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const isOperator = user?.role === "OPERATOR";
+
+  // Fetch canonical codes
+  const {
+    data: searchResults,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["codesSearch", query],
+    queryFn: () => api.searchCodes(query),
+  });
+
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    const newParams = new URLSearchParams(searchParams);
+    if (val) {
+      newParams.set("q", val);
+    } else {
+      newParams.delete("q");
+    }
+    setSearchParams(newParams);
+  };
+
+  const handleCategoryFilter = (cat) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (cat === "ALL") {
+      newParams.delete("category");
+    } else {
+      newParams.set("category", cat);
+    }
+    setSearchParams(newParams);
+  };
+
+  const handleViewModeToggle = (mode) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("view", mode);
+    setSearchParams(newParams);
+  };
+
+  // Filter results client-side for category if selected
+  const filteredResults = searchResults?.filter((g) => {
+    if (selectedCategory === "ALL") return true;
+    return g.categoryName?.toUpperCase() === selectedCategory.toUpperCase();
+  }) || [];
+
+  const handleDownloadExport = async (type) => {
+    setExportError(null);
+    setIsExporting(true);
+    try {
+      await api.downloadExport(type, exportFormat);
+      setShowExportModal(false);
+    } catch (err) {
+      setExportError(err.message || "Export download failed. Please check network connectivity or role permissions.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return (
+    <div className="page-container">
+      {/* Page Header */}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">{isOperator ? t("catalog.searchTitle") : t("catalog.unifiedTitle")}</h1>
+          <p className="page-subtitle">{isOperator ? t("catalog.searchSub") : t("catalog.unifiedSub")}</p>
+        </div>
+        <div className="page-actions">
+          {isOperator ? (
+            <Link to="/ingest" className="btn btn-primary" id="btn-request-code">
+              <PlusCircle size={15} aria-hidden="true" /> {t("catalog.requestCodeBtn")}
+            </Link>
+          ) : (
+            <button className="btn btn-outline" onClick={() => setShowExportModal(true)} id="btn-export-catalog">
+              <Download size={15} aria-hidden="true" /> {t("catalog.exportBtn")}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Search & Filter Toolbar (URL Synchronized) */}
+      <div className="card filter-card mb-4 p-3">
+        <div className="filter-bar-grid">
+          <div className="search-input-wrapper">
+            <Search size={16} className="search-icon" aria-hidden="true" />
+            <input
+              type="text"
+              className="form-input search-input"
+              placeholder={t("catalog.searchPlaceholder")}
+              value={query}
+              onChange={handleSearchChange}
+              id="catalog-search-input"
+            />
+          </div>
+
+          <div className="filter-options-row">
+            <div className="select-wrapper">
+              <select
+                className="form-select"
+                value={selectedCategory}
+                onChange={(e) => handleCategoryFilter(e.target.value)}
+                aria-label="Filter by Material Commodity Class"
+              >
+                <option value="ALL">{t("catalog.allCategories")}</option>
+                <option value="PIPE">Pipes & Tubes (40-14-07)</option>
+                <option value="VALVE">Industrial Valves (40-14-16)</option>
+                <option value="FLANGE">Pipe Flanges (40-14-17)</option>
+                <option value="PUMP">Industrial Pumps (40-15-15)</option>
+                <option value="BEARING">Bearings (31-17-15)</option>
+                <option value="FASTENER">Fasteners & Studs (31-16-15)</option>
+                <option value="MOTOR">Electric Motors (26-10-11)</option>
+                <option value="CABLE">Electrical Cable (26-12-16)</option>
+              </select>
+            </div>
+
+            {!isOperator && (
+              <div className="btn-group">
+                <button
+                  className={`btn btn-sm ${viewMode === "canonical" ? "btn-primary" : "btn-outline"}`}
+                  onClick={() => handleViewModeToggle("canonical")}
+                >
+                  <BookOpen size={13} aria-hidden="true" /> Canonical
+                </button>
+                <button
+                  className={`btn btn-sm ${viewMode === "crossref" ? "btn-primary" : "btn-outline"}`}
+                  onClick={() => handleViewModeToggle("crossref")}
+                >
+                  <FileSpreadsheet size={13} aria-hidden="true" /> Cross-Reference
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      {isLoading ? (
+        <LoadingSkeleton rows={6} type="table" />
+      ) : error ? (
+        <ErrorPanel error={error} onRetry={refetch} title="Failed to search national master catalog" />
+      ) : filteredResults.length === 0 ? (
+        <div className="card text-center p-5">
+          <p className="text-lg font-medium text-muted mb-3">{t("catalog.emptySearch")}</p>
+          {isOperator && (
+            <div>
+              <p className="text-sm text-dim mb-4">
+                Does your required material not exist in the national registry? You can submit a request for a new national code.
+              </p>
+              <Link to="/ingest" className="btn btn-primary">
+                <PlusCircle size={15} /> {t("catalog.requestCodeBtn")}
+              </Link>
+            </div>
+          )}
+        </div>
+      ) : viewMode === "canonical" ? (
+        /* Canonical Groups Table */
+        <div className="card">
+            <Table caption="Canonical material master">
+              <thead>
+                <tr>
+                  <th scope="col" style={{ width: "22%" }}>National Material Code</th>
+                  <th scope="col" style={{ width: "38%" }}>Standardized Description</th>
+                  <th scope="col" style={{ width: "15%" }}>Commodity Class</th>
+                  <th scope="col" style={{ width: "8%" }}>UOM</th>
+                  <th scope="col" style={{ width: "10%" }} className="text-center">Status</th>
+                  <th scope="col" style={{ width: "7%" }} className="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredResults.map((group) => {
+                  const code = group.commonMaterialCode || group.provisionalRef;
+                  const isProv = !group.commonMaterialCode;
+                  return (
+                    <tr key={group.provisionalRef || group.commonMaterialCode}>
+                      <td>
+                        <CodeChip
+                          code={code}
+                          provisional={isProv}
+                          size="md"
+                          categoryPath={group.categoryPath}
+                        />
+                      </td>
+                      <td>
+                        <div className="font-medium text-primary">{group.standardizedDescription}</div>
+                        {group.standardizedSpecification && (
+                          <div className="text-xs text-muted mt-0.5">{group.standardizedSpecification}</div>
+                        )}
+                      </td>
+                      <td>
+                        <span className="badge badge-neutral">{group.categoryName || "GENERAL"}</span>
+                      </td>
+                      <td>{group.standardizedUom || "NOS"}</td>
+                      <td className="text-center">
+                        <span className={`badge ${group.status === "ACTIVE" ? "badge-success" : "badge-warning"}`}>
+                          {group.status}
+                        </span>
+                      </td>
+                      <td className="text-center">
+                        <Link
+                          to={`/codes/${encodeURIComponent(code)}`}
+                          className="btn btn-ghost btn-sm btn-icon"
+                          title={t("catalog.viewDetails")}
+                          aria-label={`View details for ${code}`}
+                        >
+                          <Eye size={15} />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+        </div>
+      ) : (
+        /* Cross-Reference Index View (Reviewer / Admin) */
+        <div className="card">
+            <Table caption="Cross-reference index">
+              <thead>
+                <tr>
+                  <th scope="col">CPSE</th>
+                  <th scope="col">Plant Material Code</th>
+                  <th scope="col">Raw Material Description</th>
+                  <th scope="col">National Master Code</th>
+                  <th scope="col">Standardized Specification</th>
+                  <th scope="col">Mapping Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredResults.flatMap((group) =>
+                  (group.members || []).map((m, idx) => (
+                    <tr key={`${group.commonMaterialCode || group.provisionalRef}-${idx}`}>
+                      <td className="font-semibold text-accent">{m.cpseName}</td>
+                      <td className="font-mono text-xs">{m.cpseMaterialCode}</td>
+                      <td>{m.rawDescription}</td>
+                      <td>
+                        <CodeChip
+                          code={group.commonMaterialCode || group.provisionalRef}
+                          size="sm"
+                          categoryPath={group.categoryPath}
+                        />
+                      </td>
+                      <td className="text-sm">{group.standardizedDescription}</td>
+                      <td>
+                        <span className={`badge ${m.mappingStatus === "CONFIRMED" ? "badge-success" : "badge-warning"}`}>
+                          {m.mappingStatus}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+        </div>
+      )}
+
+      {/* Export dialog */}
+      {showExportModal && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="export-modal-title">
+          <div className="modal-card">
+            <h2 id="export-modal-title" className="text-lg font-bold mb-3">
+              Export National Catalog Data
+            </h2>
+            <p className="text-sm text-muted mb-4">
+              Select desired catalog dataset and export format. All data exports write verifiable records to the governance audit trail.
+            </p>
+
+            {exportError && (
+              <div className="alert alert-danger mb-4" role="alert" style={{ color: "var(--danger)", padding: "0.75rem", border: "1px solid var(--danger-border)", borderRadius: "var(--radius-sm)", fontSize: "0.85rem", background: "var(--danger-bg)" }}>
+                {exportError}
+              </div>
+            )}
+
+            <div className="form-group mb-3">
+              <label className="form-label">Format</label>
+              <div className="btn-group w-full">
+                <button
+                  type="button"
+                  className={`btn ${exportFormat === "csv" ? "btn-primary" : "btn-outline"} w-1/2`}
+                  onClick={() => setExportFormat("csv")}
+                  disabled={isExporting}
+                >
+                  CSV (RFC 4180)
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${exportFormat === "xlsx" ? "btn-primary" : "btn-outline"} w-1/2`}
+                  onClick={() => setExportFormat("xlsx")}
+                  disabled={isExporting}
+                >
+                  Excel (XLSX)
+                </button>
+              </div>
+            </div>
+
+            <div className="export-options-list mb-4">
+              <button
+                className="btn btn-outline btn-block text-left mb-2 flex items-center justify-between"
+                onClick={() => handleDownloadExport("crossref")}
+                disabled={isExporting}
+              >
+                <div>
+                  <div className="font-semibold">Cross-Reference Index</div>
+                  <div className="text-xs text-muted">CPSE plant codes mapped to National Material Codes</div>
+                </div>
+                <Download size={16} />
+              </button>
+
+              <button
+                className="btn btn-outline btn-block text-left mb-2 flex items-center justify-between"
+                onClick={() => handleDownloadExport("master")}
+                disabled={isExporting}
+              >
+                <div>
+                  <div className="font-semibold">Canonical Master Catalog</div>
+                  <div className="text-xs text-muted">Complete UNSPSC-standard national master records</div>
+                </div>
+                <Download size={16} />
+              </button>
+
+              <button
+                className="btn btn-outline btn-block text-left flex items-center justify-between"
+                onClick={() => handleDownloadExport("erp")}
+                disabled={isExporting}
+              >
+                <div>
+                  <div className="font-semibold">SAP ERP Mapping Template</div>
+                  <div className="text-xs text-muted">Standard MATNR, NUMM_CODE, MAKTX_STD integration file</div>
+                </div>
+                <Download size={16} />
+              </button>
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn btn-ghost" onClick={() => { setShowExportModal(false); setExportError(null); }} disabled={isExporting}>
+                {t("common.cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

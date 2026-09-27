@@ -1,0 +1,33 @@
+# Secrets and local environment overrides
+.env
+.env.*
+!.env.example
+!*.env.example
+
+# Source archives and local backups
+*.zip
+*.7z
+*.rar
+
+# Frontend dependencies and builds
+**/node_modules/
+**/dist/
+
+# Java/Maven builds and local runtime data
+**/target/
+Material Code Harmonization/material-master-backend/data/
+
+# Python environments, caches, and generated data
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/matching-service/data/generated/
+
+# Local logs and editor/OS metadata
+**/.local-demo-logs/
+*.log
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

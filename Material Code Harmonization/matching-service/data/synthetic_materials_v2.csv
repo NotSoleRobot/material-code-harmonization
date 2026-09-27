@@ -1,0 +1,107 @@
+row_id,cpse_name,cpse_material_code,description,specification,unit_of_measure,category,ground_truth_group
+1,ONGC,MSPI-50-1,MS PIPE 50MM SEAMLESS,IS 1239,NOS,Steel > Pipes,MS_PIPE_50MM
+2,GAIL,MSPI-50-2,"Mild Steel Pipe, 50mm diameter, Seamless",IS 1239,NOS,Steel > Pipes,MS_PIPE_50MM
+3,SAIL,MSPI-80-3,MS PIPE 80MM SEAMLESS,IS 1239,NOS,Steel > Pipes,MS_PIPE_80MM
+4,PGCIL,MSPI-80-4,"Mild Steel Pipe, 80mm diameter, Seamless",IS 1239,NOS,Steel > Pipes,MS_PIPE_80MM
+5,GAIL,MSPI-80-5,M.S. Pipe 80 mm dia seamless type,IS 1239,NOS,Steel > Pipes,MS_PIPE_80MM
+6,GAIL,MSPI-100-6,MS PIPE 100MM SEAMLESS,IS 1239,NOS,Steel > Pipes,MS_PIPE_100MM
+7,PGCIL,MSPI-100-7,"Mild Steel Pipe, 100mm diameter, Seamless",IS 1239,NOS,Steel > Pipes,MS_PIPE_100MM
+8,CIL,SSPI-50-8,SS Pipe 50mm Seamless,ASTM A312,NOS,Steel > Pipes,SS_PIPE_50MM
+9,ONGC,SSPI-50-9,"Stainless Steel Pipe, 50mm dia",ASTM A312,NOS,Steel > Pipes,SS_PIPE_50MM
+10,CIL,SSPI-65-10,SS Pipe 65mm Seamless,ASTM A312,NOS,Steel > Pipes,SS_PIPE_65MM
+11,BHEL,SSPI-65-11,"Stainless Steel Pipe, 65mm dia",ASTM A312,NOS,Steel > Pipes,SS_PIPE_65MM
+12,ONGC,MSPL-5-12,MS Plate 5mm Thickness,IS 2062,NOS,Steel > Plates,MS_PLATE_5MM
+13,PGCIL,MSPL-5-13,"Mild Steel Plate, 5mm thick",IS 2062,NOS,Steel > Plates,MS_PLATE_5MM
+14,SAIL,MSPL-10-14,MS Plate 10mm Thickness,IS 2062,NOS,Steel > Plates,MS_PLATE_10MM
+15,CIL,MSPL-10-15,"Mild Steel Plate, 10mm thick",IS 2062,NOS,Steel > Plates,MS_PLATE_10MM
+16,CIL,MSPL-12-16,MS Plate 12mm Thickness,IS 2062,NOS,Steel > Plates,MS_PLATE_12MM
+17,SAIL,MSPL-12-17,"Mild Steel Plate, 12mm thick",IS 2062,NOS,Steel > Plates,MS_PLATE_12MM
+18,GAIL,MSAN-5050-18,MS Angle 50x50x6mm,IS 2062,NOS,Steel > Angles,MS_ANGLE_50X50MM3
+19,PGCIL,MSAN-5050-19,"Mild Steel Angle, 50x50x6 mm",IS 2062,NOS,Steel > Angles,MS_ANGLE_50X50MM3
+20,GAIL,MSAN-6565-20,MS Angle 65x65x6mm,IS 2062,NOS,Steel > Angles,MS_ANGLE_65X65MM3
+21,CIL,MSAN-6565-21,"Mild Steel Angle, 65x65x6 mm",IS 2062,NOS,Steel > Angles,MS_ANGLE_65X65MM3
+22,BHEL,MSAN-7575-22,MS Angle 75x75x6mm,IS 2062,NOS,Steel > Angles,MS_ANGLE_75X75MM3
+23,SAIL,MSAN-7575-23,"Mild Steel Angle, 75x75x6 mm",IS 2062,NOS,Steel > Angles,MS_ANGLE_75X75MM3
+24,CIL,MSRO-10-24,MS Rod 10mm dia,IS 1786,NOS,Steel > Rods,MS_ROD_10MM
+25,NTPC,MSRO-10-25,"Mild Steel Round Rod, 10mm diameter",IS 1786,NOS,Steel > Rods,MS_ROD_10MM
+26,ONGC,MSRO-10-26,M.S. Rod - 10 mm,IS 1786,NOS,Steel > Rods,MS_ROD_10MM
+27,GAIL,MSRO-12-27,MS Rod 12mm dia,IS 1786,NOS,Steel > Rods,MS_ROD_12MM
+28,BHEL,MSRO-12-28,"Mild Steel Round Rod, 12mm diameter",IS 1786,NOS,Steel > Rods,MS_ROD_12MM
+29,NTPC,MSRO-16-29,MS Rod 16mm dia,IS 1786,NOS,Steel > Rods,MS_ROD_16MM
+30,SAIL,MSRO-16-30,"Mild Steel Round Rod, 16mm diameter",IS 1786,NOS,Steel > Rods,MS_ROD_16MM
+31,GAIL,MSRO-16-31,M.S. Rod - 16 mm,IS 1786,NOS,Steel > Rods,MS_ROD_16MM
+32,ONGC,SSBE-20-32,SS Bearing 20mm Bore,DIN 625,NOS,Mechanical > Bearings,SS_BEARING_20MM
+33,PGCIL,SSBE-20-33,"Stainless Steel Ball Bearing, 20mm bore",DIN 625,NOS,Mechanical > Bearings,SS_BEARING_20MM
+34,BHEL,SSBE-20-34,S.S. Bearing 20 mm,DIN 625,NOS,Mechanical > Bearings,SS_BEARING_20MM
+35,NTPC,SSBE-30-35,SS Bearing 30mm Bore,DIN 625,NOS,Mechanical > Bearings,SS_BEARING_30MM
+36,PGCIL,SSBE-30-36,"Stainless Steel Ball Bearing, 30mm bore",DIN 625,NOS,Mechanical > Bearings,SS_BEARING_30MM
+37,CIL,BALL-15-37,Ball Bearing 15mm Bore Deep Groove,,NOS,Mechanical > Bearings,BALL_BEARING_15MM
+38,NTPC,BALL-15-38,"Deep Groove Ball Bearing, 15mm bore",,NOS,Mechanical > Bearings,BALL_BEARING_15MM
+39,PGCIL,BALL-25-39,Ball Bearing 25mm Bore Deep Groove,,NOS,Mechanical > Bearings,BALL_BEARING_25MM
+40,ONGC,BALL-25-40,"Deep Groove Ball Bearing, 25mm bore",,NOS,Mechanical > Bearings,BALL_BEARING_25MM
+41,CIL,CENT-5-41,Centrifugal Pump 5HP,,NOS,Mechanical > Pumps,CENTRIFUGAL_PUMP_5HP
+42,ONGC,CENT-5-42,"Centrifugal Water Pump, 5 HP motor",,NOS,Mechanical > Pumps,CENTRIFUGAL_PUMP_5HP
+43,BHEL,CENT-5-43,Centrifugal Pump - 5 H.P.,,NOS,Mechanical > Pumps,CENTRIFUGAL_PUMP_5HP
+44,CIL,CENT-10-44,Centrifugal Pump 10HP,,NOS,Mechanical > Pumps,CENTRIFUGAL_PUMP_10HP
+45,NTPC,CENT-10-45,"Centrifugal Water Pump, 10 HP motor",,NOS,Mechanical > Pumps,CENTRIFUGAL_PUMP_10HP
+46,CIL,CENT-15-46,Centrifugal Pump 15HP,,NOS,Mechanical > Pumps,CENTRIFUGAL_PUMP_15HP
+47,SAIL,CENT-15-47,"Centrifugal Water Pump, 15 HP motor",,NOS,Mechanical > Pumps,CENTRIFUGAL_PUMP_15HP
+48,ONGC,CENT-15-48,Centrifugal Pump - 15 H.P.,,NOS,Mechanical > Pumps,CENTRIFUGAL_PUMP_15HP
+49,ONGC,SUBM-3-49,Submersible Pump 3HP,,NOS,Mechanical > Pumps,SUBMERSIBLE_PUMP_3HP
+50,GAIL,SUBM-3-50,Submersible Water Pump - 3 H.P.,,NOS,Mechanical > Pumps,SUBMERSIBLE_PUMP_3HP
+51,SAIL,SUBM-75-51,Submersible Pump 7.5HP,,NOS,Mechanical > Pumps,SUBMERSIBLE_PUMP_7_5HP
+52,NTPC,SUBM-75-52,Submersible Water Pump - 7.5 H.P.,,NOS,Mechanical > Pumps,SUBMERSIBLE_PUMP_7_5HP
+53,PGCIL,GATE-2-53,Gate Valve 2 inch,,NOS,Mechanical > Valves,GATE_VALVE_2INCH
+54,SAIL,GATE-2-54,"Gate Valve, 2"" size, CI body",,NOS,Mechanical > Valves,GATE_VALVE_2INCH
+55,BHEL,GATE-4-55,Gate Valve 4 inch,,NOS,Mechanical > Valves,GATE_VALVE_4INCH
+56,NTPC,GATE-4-56,"Gate Valve, 4"" size, CI body",,NOS,Mechanical > Valves,GATE_VALVE_4INCH
+57,GAIL,GATE-6-57,Gate Valve 6 inch,,NOS,Mechanical > Valves,GATE_VALVE_6INCH
+58,NTPC,GATE-6-58,"Gate Valve, 6"" size, CI body",,NOS,Mechanical > Valves,GATE_VALVE_6INCH
+59,SAIL,GATE-6-59,Gate Valve - 6 Inch,,NOS,Mechanical > Valves,GATE_VALVE_6INCH
+60,NTPC,BUTT-3-60,Butterfly Valve 3 inch,,NOS,Mechanical > Valves,BUTTERFLY_VALVE_3INCH
+61,PGCIL,BUTT-3-61,"Butterfly Valve, 3"" Wafer type",,NOS,Mechanical > Valves,BUTTERFLY_VALVE_3INCH
+62,SAIL,BUTT-5-62,Butterfly Valve 5 inch,,NOS,Mechanical > Valves,BUTTERFLY_VALVE_5INCH
+63,GAIL,BUTT-5-63,"Butterfly Valve, 5"" Wafer type",,NOS,Mechanical > Valves,BUTTERFLY_VALVE_5INCH
+64,GAIL,HEXB-10-64,Hex Bolt M10,,NOS,Mechanical > Fasteners,HEX_BOLT_10M
+65,PGCIL,HEXB-10-65,"Hexagonal Head Bolt, M10 size",,NOS,Mechanical > Fasteners,HEX_BOLT_10M
+66,ONGC,HEXB-10-66,Hex Head Bolt M10 x 50mm,,NOS,Mechanical > Fasteners,HEX_BOLT_10M
+67,CIL,HEXB-12-67,Hex Bolt M12,,NOS,Mechanical > Fasteners,HEX_BOLT_12M
+68,GAIL,HEXB-12-68,"Hexagonal Head Bolt, M12 size",,NOS,Mechanical > Fasteners,HEX_BOLT_12M
+69,SAIL,HEXB-16-69,Hex Bolt M16,,NOS,Mechanical > Fasteners,HEX_BOLT_16M
+70,BHEL,HEXB-16-70,"Hexagonal Head Bolt, M16 size",,NOS,Mechanical > Fasteners,HEX_BOLT_16M
+71,NTPC,POWE-4-71,Power Cable 4 Sq.mm,IS 694,NOS,Power > Cables,POWER_CABLE_4SQMM
+72,GAIL,POWE-4-72,"XLPE Cable, 4 sq mm cross-section",IS 694,NOS,Power > Cables,POWER_CABLE_4SQMM
+73,CIL,POWE-4-73,Electrical Cable - 4SQMM,IS 694,NOS,Power > Cables,POWER_CABLE_4SQMM
+74,GAIL,POWE-6-74,Power Cable 6 Sq.mm,IS 694,NOS,Power > Cables,POWER_CABLE_6SQMM
+75,NTPC,POWE-6-75,"XLPE Cable, 6 sq mm cross-section",IS 694,NOS,Power > Cables,POWER_CABLE_6SQMM
+76,SAIL,POWE-10-76,Power Cable 10 Sq.mm,IS 694,NOS,Power > Cables,POWER_CABLE_10SQMM
+77,ONGC,POWE-10-77,"XLPE Cable, 10 sq mm cross-section",IS 694,NOS,Power > Cables,POWER_CABLE_10SQMM
+78,BHEL,DIST-100-78,Distribution Transformer 100KVA,,NOS,Power > Transformers,DISTRIBUTION_TRANSFORMER_100KVA
+79,NTPC,DIST-100-79,"Transformer, 100 kVA rating",,NOS,Power > Transformers,DISTRIBUTION_TRANSFORMER_100KVA
+80,ONGC,DIST-100-80,Power Transformer - 100 KVA,,NOS,Power > Transformers,DISTRIBUTION_TRANSFORMER_100KVA
+81,CIL,DIST-250-81,Distribution Transformer 250KVA,,NOS,Power > Transformers,DISTRIBUTION_TRANSFORMER_250KVA
+82,GAIL,DIST-250-82,"Transformer, 250 kVA rating",,NOS,Power > Transformers,DISTRIBUTION_TRANSFORMER_250KVA
+83,SAIL,DIST-500-83,Distribution Transformer 500KVA,,NOS,Power > Transformers,DISTRIBUTION_TRANSFORMER_500KVA
+84,GAIL,DIST-500-84,"Transformer, 500 kVA rating",,NOS,Power > Transformers,DISTRIBUTION_TRANSFORMER_500KVA
+85,BHEL,DIST-500-85,Power Transformer - 500 KVA,,NOS,Power > Transformers,DISTRIBUTION_TRANSFORMER_500KVA
+86,GAIL,MCCB-63-86,MCCB 63A,,NOS,Power > Circuit Breakers,MCCB_CIRCUIT_BREAKER_63AMP
+87,BHEL,MCCB-63-87,"Circuit Breaker, 63 Amp rating",,NOS,Power > Circuit Breakers,MCCB_CIRCUIT_BREAKER_63AMP
+88,SAIL,MCCB-63-88,MCCB Circuit Breaker - 63 AMP,,NOS,Power > Circuit Breakers,MCCB_CIRCUIT_BREAKER_63AMP
+89,SAIL,MCCB-100-89,MCCB 100A,,NOS,Power > Circuit Breakers,MCCB_CIRCUIT_BREAKER_100AMP
+90,PGCIL,MCCB-100-90,"Circuit Breaker, 100 Amp rating",,NOS,Power > Circuit Breakers,MCCB_CIRCUIT_BREAKER_100AMP
+91,CIL,MCCB-100-91,MCCB Circuit Breaker - 100 AMP,,NOS,Power > Circuit Breakers,MCCB_CIRCUIT_BREAKER_100AMP
+92,GAIL,MCCB-200-92,MCCB 200A,,NOS,Power > Circuit Breakers,MCCB_CIRCUIT_BREAKER_200AMP
+93,CIL,MCCB-200-93,"Circuit Breaker, 200 Amp rating",,NOS,Power > Circuit Breakers,MCCB_CIRCUIT_BREAKER_200AMP
+94,BHEL,MCCB-200-94,MCCB Circuit Breaker - 200 AMP,,NOS,Power > Circuit Breakers,MCCB_CIRCUIT_BREAKER_200AMP
+95,CIL,WIRE-12-95,Wire Rope 12mm dia,IS 2266,NOS,Mining > Wire Ropes,WIRE_ROPE_12MM
+96,BHEL,WIRE-12-96,"Steel Wire Rope, 12mm diameter",IS 2266,NOS,Mining > Wire Ropes,WIRE_ROPE_12MM
+97,NTPC,WIRE-16-97,Wire Rope 16mm dia,IS 2266,NOS,Mining > Wire Ropes,WIRE_ROPE_16MM
+98,SAIL,WIRE-16-98,"Steel Wire Rope, 16mm diameter",IS 2266,NOS,Mining > Wire Ropes,WIRE_ROPE_16MM
+99,SAIL,WIRE-20-99,Wire Rope 20mm dia,IS 2266,NOS,Mining > Wire Ropes,WIRE_ROPE_20MM
+100,CIL,WIRE-20-100,"Steel Wire Rope, 20mm diameter",IS 2266,NOS,Mining > Wire Ropes,WIRE_ROPE_20MM
+101,BHEL,CONV-650-101,Conveyor Belt 650mm Width,,NOS,Mining > Conveyor Belts,CONVEYOR_BELT_650MM
+102,ONGC,CONV-650-102,"Rubber Conveyor Belt, 650mm wide",,NOS,Mining > Conveyor Belts,CONVEYOR_BELT_650MM
+103,PGCIL,CONV-800-103,Conveyor Belt 800mm Width,,NOS,Mining > Conveyor Belts,CONVEYOR_BELT_800MM
+104,ONGC,CONV-800-104,"Rubber Conveyor Belt, 800mm wide",,NOS,Mining > Conveyor Belts,CONVEYOR_BELT_800MM
+105,PGCIL,CONV-1000-105,Conveyor Belt 1000mm Width,,NOS,Mining > Conveyor Belts,CONVEYOR_BELT_1000MM
+106,ONGC,CONV-1000-106,"Rubber Conveyor Belt, 1000mm wide",,NOS,Mining > Conveyor Belts,CONVEYOR_BELT_1000MM

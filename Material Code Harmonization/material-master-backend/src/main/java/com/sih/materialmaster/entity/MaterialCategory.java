@@ -23,7 +23,16 @@ public class MaterialCategory {
     private String name;
 
     @Column(name = "level", nullable = false)
-    private Integer level;
+    private Integer level; // 1: Segment, 2: Family, 3: Class
+
+    @Column(name = "code_segment", length = 10)
+    private String codeSegment; // e.g. "40"
+
+    @Column(name = "code_family", length = 10)
+    private String codeFamily; // e.g. "14"
+
+    @Column(name = "code_class", length = 10)
+    private String codeClass; // e.g. "07"
 
     // Self-referencing FK: parent category. Null for top-level categories.
     @ManyToOne(fetch = FetchType.LAZY)

@@ -1,10 +1,20 @@
-# Material Code Harmonization
+# NUMM — Material Code Harmonization
 
-AI-powered platform for standardizing, harmonizing, and intelligently mapping material codes across CPSEs.
+The application source and documentation are in
+[`Material Code Harmonization`](./Material%20Code%20Harmonization/README.md).
 
-## Project Structure
+## Local start
 
-* `backend/` — Spring Boot backend and APIs
-* `matching-service/` — Python-based AI/ML matching service
-* `frontend/` — React frontend
-* `docs/` — Project documentation
+```powershell
+cd "Material Code Harmonization"
+docker compose up -d --build
+```
+
+Open `http://localhost:3000` after the services become healthy.
+
+## Hosted deployment
+
+The root-level [`render.yaml`](./render.yaml) defines the React frontend, Spring Boot
+backend, and Python matching service for Render. Follow the
+[`Render + Supabase deployment guide`](./Material%20Code%20Harmonization/docs/RENDER_DEPLOYMENT.md)
+for the required environment variables and verification steps.

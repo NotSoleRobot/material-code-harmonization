@@ -21,7 +21,28 @@ public class MaterialGroup {
     @Column(name = "group_id")
     private Long groupId;
 
-    @Column(name = "common_material_code", unique = true, nullable = false, length = 50)
+    // SHA-256 hash of canonical normalized identity attributes (WP1)
+    // NULL when identity-critical attributes are incomplete — no blind merge.
+    @Column(name = "attribute_signature", unique = false, nullable = true, length = 64)
+    private String attributeSignature;
+
+    // WP1: true when ALL identity-critical keys for this category were present
+    // at signature computation time. Only complete signatures participate in dedup.
+    @Column(name = "signature_complete", nullable = false)
+    private Boolean signatureComplete = false;
+
+    @Column(name = "signature_attributes", columnDefinition = "TEXT")
+    private String signatureAttributes;
+
+    @Column(name = "signature_version", nullable = false)
+    private Integer signatureVersion = 1;
+
+    // Human-readable provisional reference (e.g. PROV-2026-000001) shown before reviewer approval
+    @Column(name = "provisional_ref", unique = true, nullable = false, length = 50)
+    private String provisionalRef;
+
+    // Minted national code (NUMM-SS-FF-CC-NNNNNN-K) - NULL until human reviewer sign-off (fixes BUG-03)
+    @Column(name = "common_material_code", unique = true, length = 50)
     private String commonMaterialCode;
 
     @Column(name = "standardized_description", nullable = false, columnDefinition = "TEXT")
@@ -30,16 +51,20 @@ public class MaterialGroup {
     @Column(name = "standardized_specification", columnDefinition = "TEXT")
     private String standardizedSpecification;
 
-    @Column(name = "standardized_uom", length = 20)
+    @Column(name = "standardized_uom", length = 30)
     private String standardizedUom;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private MaterialCategory category;
 
-    // PENDING_REVIEW | APPROVED | REJECTED — implements FR8 at the group level.
-    @Column(name = "status", nullable = false, length = 20)
-    private String status = "PENDING_REVIEW";
+    // PROPOSED | ACTIVE | SUPERSEDED | DEPRECATED
+    @Column(name = "status", nullable = false, length = 30)
+    private String status = "PROPOSED";
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "superseded_by_group_id")
+    private MaterialGroup supersededByGroup;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -49,8 +74,15 @@ public class MaterialGroup {
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+        if (this.updatedAt == null) {
+            this.updatedAt = LocalDateTime.now();
+        }
+        if (this.status == null) {
+            this.status = "PROPOSED";
+        }
     }
 
     @PreUpdate

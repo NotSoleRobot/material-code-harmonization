@@ -1,0 +1,101 @@
+{
+  "split_sizes": {
+    "train": 19601,
+    "val": 2514,
+    "test": 2635
+  },
+  "baseline": {
+    "threshold": 0.3,
+    "test_precision": 0.7993957703927492,
+    "test_recall": 0.7449324324324325,
+    "test_f1": 0.7712037306907608,
+    "false_merge_rate_on_hard_negatives": 0.22262118491921004,
+    "n_hard_negatives": 557
+  },
+  "hybrid_model": {
+    "val_macro_f1": 0.8215118217118671,
+    "test_macro_f1": 0.8375555305976915,
+    "test_binary_precision": 0.928922908693275,
+    "test_binary_recall": 0.9566441441441441,
+    "test_binary_f1": 0.9425797503467407,
+    "false_merge_rate_on_hard_negatives": 0.05565529622980251
+  },
+  "confusion_matrix_labels": [
+    "EXACT_DUPLICATE",
+    "NEAR_DUPLICATE",
+    "FUNCTIONALLY_EQUIVALENT",
+    "VARIANT",
+    "NOT_A_MATCH",
+    "NEEDS_REVIEW"
+  ],
+  "confusion_matrix": [
+    [
+      277,
+      3,
+      0,
+      0,
+      0,
+      1
+    ],
+    [
+      3,
+      1416,
+      1,
+      2,
+      10,
+      63
+    ],
+    [
+      0,
+      1,
+      5,
+      0,
+      0,
+      0
+    ],
+    [
+      3,
+      9,
+      0,
+      31,
+      7,
+      0
+    ],
+    [
+      1,
+      18,
+      0,
+      9,
+      476,
+      3
+    ],
+    [
+      7,
+      91,
+      0,
+      2,
+      7,
+      189
+    ]
+  ],
+  "feature_importances": {
+    "frac_agree": 0.1110215328862879,
+    "tfidf_char_cosine": 0.10427226979452062,
+    "n_attrs_conflict": 0.10083826139645327,
+    "fuzz_ratio": 0.0892316255475238,
+    "tfidf_word_cosine": 0.08711775503980633,
+    "any_type_conflict": 0.08357291232346986,
+    "fuzz_token_sort": 0.07653608734318197,
+    "variant_critical_conflict": 0.06322548628308183,
+    "fuzz_partial": 0.06176256220089865,
+    "n_attrs_agree": 0.053290287239313124,
+    "len_ratio": 0.04344153566886211,
+    "identity_critical_conflict": 0.03583246770640418,
+    "n_attrs_compared": 0.03288606770575441,
+    "n_critical_missing": 0.026772363358274508,
+    "variant_critical_missing": 0.017823205868643197,
+    "identity_critical_missing": 0.008056174632186405,
+    "same_category": 0.004319405005337873
+  },
+  "classification_report": "                         precision    recall  f1-score   support\n\n        EXACT_DUPLICATE       0.95      0.99      0.97       281\n         NEAR_DUPLICATE       0.92      0.95      0.93      1495\nFUNCTIONALLY_EQUIVALENT       0.83      0.83      0.83         6\n                VARIANT       0.70      0.62      0.66        50\n            NOT_A_MATCH       0.95      0.94      0.95       507\n           NEEDS_REVIEW       0.74      0.64      0.68       296\n\n               accuracy                           0.91      2635\n              macro avg       0.85      0.83      0.84      2635\n           weighted avg       0.91      0.91      0.91      2635\n"
+}

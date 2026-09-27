@@ -1,0 +1,72 @@
+package com.sih.materialmaster.controller;
+
+import com.sih.materialmaster.entity.User;
+import com.sih.materialmaster.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/auth")
+@Profile("demo")
+public class AuthDemoController {
+    private final UserRepository users;
+    private final String adminPassword;
+    private final String reviewerPassword;
+    private final String operatorPassword;
+
+    public AuthDemoController(UserRepository users,
+            @Value("${demo.accounts.admin-password}") String adminPassword,
+            @Value("${demo.accounts.reviewer-password}") String reviewerPassword,
+            @Value("${demo.accounts.operator-password}") String operatorPassword) {
+        this.users = users;
+        this.adminPassword = adminPassword;
+        this.reviewerPassword = reviewerPassword;
+        this.operatorPassword = operatorPassword;
+    }
+
+    @GetMapping("/demo-accounts")
+    public ResponseEntity<List<Map<String, Object>>> accounts() {
+        return ResponseEntity.ok(users.findAll().stream()
+                .filter(User::getActive)
+                .filter(user -> switch (user.getRole()) {
+                    case "ADMIN", "SENIOR_REVIEWER" -> true;
+                    case "REVIEWER" -> "reviewer.mech@numm.gov.in".equalsIgnoreCase(user.getEmail());
+                    case "OPERATOR" -> user.getCpse() != null && "ONGC".equalsIgnoreCase(user.getCpse().getName());
+                    default -> false;
+                })
+                .map(this::toDemoAccount)
+                .toList());
+    }
+
+    private Map<String, Object> toDemoAccount(User user) {
+        Map<String, Object> account = new LinkedHashMap<>();
+        account.put("label", user.getName());
+        account.put("email", user.getEmail());
+        account.put("password", passwordFor(user.getRole()));
+        account.put("role", user.getRole());
+        account.put("org", user.getCpse() == null ? "National Committee" : user.getCpse().getName());
+        account.put("blurb", switch (user.getRole()) {
+            case "OPERATOR" -> "Ingests and tracks its CPSE material catalog";
+            case "REVIEWER" -> "Adjudicates assigned commodity matches";
+            case "SENIOR_REVIEWER" -> "Publishes approved groups and mints national codes";
+            default -> "Administers users and national analytics";
+        });
+        return account;
+    }
+
+    private String passwordFor(String role) {
+        return switch (role) {
+            case "ADMIN" -> adminPassword;
+            case "OPERATOR" -> operatorPassword;
+            default -> reviewerPassword;
+        };
+    }
+}

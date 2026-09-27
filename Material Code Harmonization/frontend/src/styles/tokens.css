@@ -1,0 +1,67 @@
+:root {
+  --ink: #16202C;
+  --ink-muted: #5A6B7D;
+  --surface: #FFFFFF;
+  --canvas: #F4F6F8;
+  --line: #D8DEE5;
+  --accent: #0B4F6C;
+  --ok: #1C7A4A;
+  --warn: #9A6400;
+  --danger: #A62B2B;
+  --info: #24567A;
+
+  --font-ui: "IBM Plex Sans", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-body: 14px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 26px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius: 3px;
+  --shadow: 0 1px 2px rgba(22, 32, 44, .08);
+  --overlay: color-mix(in srgb, var(--ink) 62%, transparent);
+  --focus: 0 0 0 2px var(--accent);
+  --sidebar-width: 240px;
+  --header-height: 52px;
+  --content-width: 1180px;
+  --transition: background-color 120ms;
+
+  /* Compatibility aliases while screens converge on the shared vocabulary. */
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink);
+  --text-muted: var(--ink-muted);
+  --text-dim: var(--ink-muted);
+  --bg-primary: var(--surface);
+  --bg-secondary: var(--canvas);
+  --bg-subtle: var(--canvas);
+  --border: var(--line);
+  --border-light: var(--line);
+  --success: var(--ok);
+  --success-text: var(--ok);
+  --success-bg: color-mix(in srgb, var(--ok) 8%, var(--surface));
+  --success-border: color-mix(in srgb, var(--ok) 35%, var(--line));
+  --warning: var(--warn);
+  --warning-text: var(--warn);
+  --warning-bg: color-mix(in srgb, var(--warn) 8%, var(--surface));
+  --warning-border: color-mix(in srgb, var(--warn) 35%, var(--line));
+  --danger-bg: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  --danger-border: color-mix(in srgb, var(--danger) 35%, var(--line));
+  --info-text: var(--info);
+  --info-bg: color-mix(in srgb, var(--info) 8%, var(--surface));
+  --info-border: color-mix(in srgb, var(--info) 35%, var(--line));
+  --accent-bg: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  --radius-xs: var(--radius);
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
+}

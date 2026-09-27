@@ -34,11 +34,22 @@ public class MaterialMapping {
     @Column(name = "confidence_score", nullable = false, precision = 5, scale = 4)
     private BigDecimal confidenceScore;
 
-    // PENDING | CONFIRMED | REJECTED - per-mapping, separate from
-    // MaterialGroup.status, so one bad link can be rejected without
-    // invalidating the whole group (FR8).
-    @Column(name = "status", nullable = false, length = 20)
+    // HIGH | MEDIUM | LOW (Innovation #2)
+    @Column(name = "confidence_tier", nullable = false, length = 10)
+    private String confidenceTier = "MEDIUM";
+
+    // PENDING | CONFIRMED | REJECTED | SUPERSEDED
+    @Column(name = "status", nullable = false, length = 30)
     private String status = "PENDING";
+
+    // Structured attribute comparison checks, warnings, and conflicts
+    @Column(name = "explanation_json", columnDefinition = "TEXT")
+    private String explanationJson;
+
+    // WP1: How this mapping was determined.
+    // DETERMINISTIC_SIGNATURE | ML_PROPOSED | NOVEL
+    @Column(name = "match_basis", length = 30)
+    private String matchBasis;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewed_by")
@@ -47,21 +58,22 @@ public class MaterialMapping {
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
 
+    @Column(name = "decision_notes", columnDefinition = "TEXT")
+    private String decisionNotes;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+        if (this.status == null) {
+            this.status = "PENDING";
+        }
+        if (this.confidenceTier == null) {
+            this.confidenceTier = "MEDIUM";
+        }
     }
-
-    // IMPORTANT: the rule "only one active (PENDING/CONFIRMED) mapping per
-    // material, but unlimited REJECTED history" is enforced by a PARTIAL
-    // UNIQUE INDEX at the DB level:
-    //   CREATE UNIQUE INDEX uq_active_mapping_per_material
-    //   ON material_mapping (material_id) WHERE status != 'REJECTED';
-    // JPA/Hibernate cannot express a conditional (WHERE-clause) unique index
-    // through annotations - this MUST be added via schema.sql, run after
-    // Hibernate creates the base table. Flagging here so it isn't forgotten
-    // when we get to that file.
 }
