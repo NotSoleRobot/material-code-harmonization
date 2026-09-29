@@ -8,7 +8,10 @@ services:
     autoDeployTrigger: commit
     envVars:
       - key: VITE_API_BASE_URL
-        sync: false
+        fromService:
+          type: web
+          name: numm-backend
+          envVarKey: RENDER_EXTERNAL_URL
     routes:
       - type: rewrite
         source: /*
@@ -63,7 +66,10 @@ services:
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
       - key: MATCHING_SERVICE_URL
-        sync: false
+        fromService:
+          type: web
+          name: numm-matching
+          envVarKey: RENDER_EXTERNAL_URL
       - key: MATCHING_SERVICE_TOKEN
         fromService:
           type: web
