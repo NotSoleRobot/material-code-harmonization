@@ -85,7 +85,7 @@ services:
         value: admin@numm.gov.in
       - key: BOOTSTRAP_ADMIN_PASSWORD
         sync: false
-      - key: DISABLE_SEEDED_DEMO_ACCOUNTS
+      - key: DISABLE_SEEDED_ROLE_ACCOUNTS_V2
         value: false
     buildFilter:
       paths:
