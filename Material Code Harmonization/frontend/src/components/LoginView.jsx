@@ -31,12 +31,9 @@ export function LoginView() {
       if (Array.isArray(accounts) && accounts.length > 0) {
         setDemoAccounts(accounts);
       }
-    }).catch((err) => {
-      setError({
-        title: "Service unavailable",
-        message: err.message || "The backend could not provide login configuration.",
-        retryable: false,
-      });
+    }).catch(() => {
+      // Demo account discovery is optional and intentionally unavailable in hosted mode.
+      setDemoAccounts([]);
     });
   }, []);
 
@@ -130,7 +127,7 @@ export function LoginView() {
                   id="email-input"
                   type="email"
                   className="form-input"
-                  placeholder="name@numm.gov.in"
+                  placeholder="name@organization.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
