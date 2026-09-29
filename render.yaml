@@ -7,6 +7,13 @@ services:
     staticPublishPath: ./dist
     autoDeployTrigger: commit
     envVars:
+      # V2 deliberately supersedes any stale VITE_API_BASE_URL value that was
+      # entered manually when the Blueprint was first created.
+      - key: VITE_API_BASE_URL_V2
+        fromService:
+          type: web
+          name: numm-backend
+          envVarKey: RENDER_EXTERNAL_URL
       - key: VITE_API_BASE_URL
         fromService:
           type: web
@@ -58,13 +65,19 @@ services:
       - key: PORT
         value: 10000
       - key: SPRING_PROFILES_ACTIVE
-        value: python-matching,hosted
+        value: python-matching,hosted,demo
       - key: SPRING_DATASOURCE_URL
         sync: false
       - key: SPRING_DATASOURCE_USERNAME
         sync: false
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
+      # V2 supersedes the manually entered URL from the first deployment.
+      - key: MATCHING_SERVICE_URL_V2
+        fromService:
+          type: web
+          name: numm-matching
+          envVarKey: RENDER_EXTERNAL_URL
       - key: MATCHING_SERVICE_URL
         fromService:
           type: web
@@ -81,6 +94,11 @@ services:
         value: 28800000
       - key: CORS_ALLOWED_ORIGINS
         sync: false
+      - key: CORS_ALLOWED_ORIGINS_V2
+        fromService:
+          type: web
+          name: numm-frontend
+          envVarKey: RENDER_EXTERNAL_URL
       - key: BOOTSTRAP_ADMIN_EMAIL
         value: admin@numm.gov.in
       - key: BOOTSTRAP_ADMIN_PASSWORD

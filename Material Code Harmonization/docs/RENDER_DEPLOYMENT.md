@@ -69,13 +69,16 @@ compiled into its build, so changing it requires a new frontend deploy.
 
 ## 4. First-start behavior
 
-The backend runs the profiles `python-matching,hosted`.
+The hackathon showcase backend runs the profiles `python-matching,hosted,demo`.
 
 - Flyway creates or upgrades the database.
-- The known seeded admin account receives `BOOTSTRAP_ADMIN_PASSWORD`.
-- Seeded reviewer and operator demo accounts are disabled.
-- The administrator can sign in as `admin@numm.gov.in` and create real users from User
-  Management.
+- Seeded Admin, Senior Reviewer, Reviewer, and Operator accounts are enabled and their
+  credentials are synchronized with the role cards returned by `/api/auth/demo-accounts`.
+- Every role card performs a real login and receives a real JWT; it is not a client-side
+  persona switch.
+- Remove `demo` from `SPRING_PROFILES_ACTIVE` before using the deployment outside a
+  controlled showcase, which hides the role cards and restores the private bootstrap
+  administrator password.
 
 The hosted initializer deliberately fails startup when the bootstrap password is
 missing or shorter than 14 characters. This prevents publishing the known local demo

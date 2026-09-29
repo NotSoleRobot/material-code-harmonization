@@ -33,18 +33,30 @@ public class HostedAccountInitializer implements ApplicationRunner {
     private final String adminEmail;
     private final String adminPassword;
     private final boolean disableSeededAccounts;
+    private final boolean demoAccountsEnabled;
+    private final String demoAdminPassword;
+    private final String demoReviewerPassword;
+    private final String demoOperatorPassword;
 
     public HostedAccountInitializer(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             @Value("${app.bootstrap.admin-email}") String adminEmail,
             @Value("${app.bootstrap.admin-password}") String adminPassword,
-            @Value("${app.bootstrap.disable-seeded-accounts:true}") boolean disableSeededAccounts) {
+            @Value("${app.bootstrap.disable-seeded-accounts:true}") boolean disableSeededAccounts,
+            @Value("${demo.accounts.enabled:false}") boolean demoAccountsEnabled,
+            @Value("${demo.accounts.admin-password:admin123}") String demoAdminPassword,
+            @Value("${demo.accounts.reviewer-password:reviewer123}") String demoReviewerPassword,
+            @Value("${demo.accounts.operator-password:operator123}") String demoOperatorPassword) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.adminEmail = adminEmail;
         this.adminPassword = adminPassword;
         this.disableSeededAccounts = disableSeededAccounts;
+        this.demoAccountsEnabled = demoAccountsEnabled;
+        this.demoAdminPassword = demoAdminPassword;
+        this.demoReviewerPassword = demoReviewerPassword;
+        this.demoOperatorPassword = demoOperatorPassword;
     }
 
     @Override
@@ -61,7 +73,8 @@ public class HostedAccountInitializer implements ApplicationRunner {
         if (!"ADMIN".equalsIgnoreCase(admin.getRole())) {
             throw new IllegalStateException("Bootstrap account must have ADMIN role: " + adminEmail);
         }
-        admin.setPasswordHash(passwordEncoder.encode(adminPassword));
+        admin.setPasswordHash(passwordEncoder.encode(
+                demoAccountsEnabled ? demoAdminPassword : adminPassword));
         admin.setActive(true);
         userRepository.save(admin);
 
@@ -79,6 +92,11 @@ public class HostedAccountInitializer implements ApplicationRunner {
             for (String email : SEEDED_NON_ADMIN_EMAILS) {
                 userRepository.findByEmail(email).ifPresent(user -> {
                     user.setActive(true);
+                    if (demoAccountsEnabled) {
+                        String password = "OPERATOR".equalsIgnoreCase(user.getRole())
+                                ? demoOperatorPassword : demoReviewerPassword;
+                        user.setPasswordHash(passwordEncoder.encode(password));
+                    }
                     userRepository.save(user);
                 });
             }

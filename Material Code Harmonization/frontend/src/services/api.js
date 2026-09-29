@@ -1,6 +1,10 @@
 import { queryClient } from "../queryClient";
 
-const hostedApiOrigin = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, "");
+// Prefer the Blueprint-managed V2 value. The original variable may still hold
+// a manually entered URL from an older Render service.
+const hostedApiOrigin = (
+  import.meta.env.VITE_API_BASE_URL_V2 || import.meta.env.VITE_API_BASE_URL
+)?.trim().replace(/\/+$/, "");
 const API_BASE = hostedApiOrigin ? `${hostedApiOrigin}/api` : "/api";
 
 let _authToken = sessionStorage.getItem("numm_auth_token") || null;
