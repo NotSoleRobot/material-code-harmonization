@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Papa from "papaparse";
 import {
@@ -16,6 +16,7 @@ const CANONICAL_FIELDS = [
   { key: "specification", label: "Specification / Standard", required: false, desc: "Standard designation (e.g. ASTM A106, IS 1239, API 600)" },
   { key: "unit_of_measure", label: "Unit of Measure", required: false, desc: "Stock keeping unit (e.g., MTR, NOS, KG, SET)" },
   { key: "category", label: "Material Category", required: true, desc: "Primary commodity category (e.g., PIPE, VALVE, BEARING)" },
+  { key: "nominal_price", label: "Nominal Price (INR)", required: false, desc: "Purchase order unit rate or estimated cost for price-variance analytics" },
   { key: "cpse_name", label: "CPSE / Enterprise Name", required: false, desc: "Auto-injected from active enterprise session if omitted in file" },
 ];
 
@@ -36,6 +37,7 @@ const HEADER_ALIASES = {
   specification: ["spec", "specification", "standard", "grade", "astm", "is_standard", "material_grade"],
   unit_of_measure: ["uom", "unit", "base_uom", "measure_unit", "unit_of_measure", "units", "meins"],
   category: ["category", "commodity", "group", "class", "category_name", "material_group", "type", "matkl"],
+  nominal_price: ["price", "nominal_price", "unit_price", "rate", "cost", "unit_rate", "amount", "po_rate", "netpr"],
   cpse_name: ["cpse", "plant", "company", "enterprise", "org", "organisation", "organization", "location", "unit", "werks"],
 };
 
@@ -107,6 +109,15 @@ export function IngestionWizard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fileInputRef = useRef();
+  const pollIntervalRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
 
   // PapaParse parsing
   const processCsvText = (csvText, fileName) => {
@@ -190,7 +201,7 @@ export function IngestionWizard() {
 
   // Transform rows to standard CSV for submission
   const generateStandardCsv = () => {
-    const canonicalHeaders = ["cpse_material_code", "description", "specification", "unit_of_measure", "category", "cpse_name"];
+    const canonicalHeaders = ["cpse_material_code", "description", "specification", "unit_of_measure", "category", "cpse_name", "nominal_price"];
     const transformed = rows.map((r) => ({
       cpse_material_code: mapping.cpse_material_code ? r[mapping.cpse_material_code] || "" : "",
       description: mapping.description ? r[mapping.description] || "" : "",
@@ -198,6 +209,7 @@ export function IngestionWizard() {
       unit_of_measure: mapping.unit_of_measure ? r[mapping.unit_of_measure] || "NOS" : "NOS",
       category: mapping.category ? r[mapping.category] || "" : "",
       cpse_name: mapping.cpse_name && r[mapping.cpse_name] ? r[mapping.cpse_name] : selectedCpse,
+      nominal_price: mapping.nominal_price ? r[mapping.nominal_price] || "" : "",
     }));
     return Papa.unparse({ fields: canonicalHeaders, data: transformed });
   };
@@ -234,7 +246,8 @@ export function IngestionWizard() {
   };
 
   const pollJob = (id) => {
-    const interval = setInterval(async () => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    pollIntervalRef.current = setInterval(async () => {
       try {
         const job = await api.getJobStatus(id);
         if (job) {
@@ -243,14 +256,16 @@ export function IngestionWizard() {
           setJobProgress(total > 0 ? Math.round((processed / total) * 100) : 50);
 
           if (job.status === "COMPLETED" || job.status === "FAILED") {
-            clearInterval(interval);
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
             setJobStatus(job.status);
             setJobResult(job);
             setIsSubmitting(false);
           }
         }
       } catch (err) {
-        clearInterval(interval);
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
         setError("Error polling ingestion job status: " + err.message);
         setIsSubmitting(false);
       }
@@ -258,6 +273,10 @@ export function IngestionWizard() {
   };
 
   const resetWizard = () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
     setStep(1);
     setFile(null);
     setHeaders([]);

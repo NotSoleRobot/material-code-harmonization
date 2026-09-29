@@ -109,7 +109,10 @@ class SecurityMatrixTest {
     @Test @WithMockUser(roles="REVIEWER") void row12_publishableRejectsReviewer() throws Exception {
         mvc.perform(get("/api/groups/publishable")).andExpect(status().isForbidden());
     }
-    @Test @WithMockUser(roles="ADMIN") void row13_mintRejectsAdmin() throws Exception {
+    @Test @WithMockUser(roles="ADMIN") void row13_mintAllowsAdmin() throws Exception {
+        mvc.perform(post("/api/groups/1/mint")).andExpect(status().isOk());
+    }
+    @Test @WithMockUser(roles="REVIEWER") void row13_mintRejectsReviewer() throws Exception {
         mvc.perform(post("/api/groups/1/mint")).andExpect(status().isForbidden());
     }
     @Test @WithMockUser(roles="SENIOR_REVIEWER") void row13_mintAllowsSenior() throws Exception {

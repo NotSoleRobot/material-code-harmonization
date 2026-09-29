@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Year;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -26,9 +26,7 @@ public class NationalCodeGenerator {
         this.entityManager = entityManager;
     }
 
-    /**
-     * Allocates a sequential serial number from the database sequence.
-     */
+    /** Legacy global allocator retained only for old callers during migration. */
     @Transactional
     public long getNextSerial() {
         Query query = entityManager.createNativeQuery("SELECT nextval('numm_serial_seq')");
@@ -39,23 +37,50 @@ public class NationalCodeGenerator {
         throw new IllegalStateException("Database sequence numm_serial_seq returned a non-numeric value");
     }
 
+    /** Atomically allocates a serial within one six-digit commodity class. */
+    @Transactional
+    public long allocateSerial(MaterialCategory category) {
+        String commodity = commodityCode(category);
+        Object result = entityManager.createNativeQuery(
+                        "INSERT INTO material_code_serial (commodity_code, next_serial) VALUES (:commodity, 2) " +
+                        "ON CONFLICT (commodity_code) DO UPDATE SET next_serial = material_code_serial.next_serial + 1 " +
+                        "RETURNING next_serial - 1")
+                .setParameter("commodity", commodity)
+                .getSingleResult();
+        if (result instanceof Number number) return number.longValue();
+        throw new IllegalStateException("Unable to allocate code serial for commodity " + commodity);
+    }
+
     /**
      * Mints a canonical National Material Code using ISO 7064 MOD 37,36 check character.
-     * Structure: NUMM-SS-FF-CC-NNNNNN-K
-     *
-     * @param category Material category entity carrying segment, family, class codes
-     * @return Formatted code with ISO 7064 check character (e.g. NUMM-40-14-07-000042-K)
+     * Backwards-compatible overload.
      */
     @Transactional
     public String mintNationalCode(MaterialCategory category) {
-        String segment = (category != null && category.getCodeSegment() != null) ? category.getCodeSegment() : "40";
-        String family  = (category != null && category.getCodeFamily() != null) ? category.getCodeFamily() : "14";
-        String clazz   = (category != null && category.getCodeClass() != null) ? category.getCodeClass() : "00";
+        return mintNationalCode(category, Collections.emptyMap(), null);
+    }
 
-        long serial = getNextSerial();
-        String serialStr = String.format("%06d", serial);
+    /**
+     * Semi-Significant Intelligent National Material Code (WP2.1 / ISO 7064 MOD 37,36).
+     * Structure: NUMM-CCCCCC-MM-DDD-RRR-NNNNNN-K
+     *
+     * Example: NUMM-401407-CS-050-S40-000042-K
+     */
+    @Transactional
+    public String mintNationalCode(MaterialCategory category, Map<String, Object> attributes, String provisionalRef) {
+        String commodity = commodityCode(category);
 
-        String baseCode = String.format("NUMM-%s-%s-%s-%s", segment, family, clazz, serialStr);
+        String matKey = extractMaterialKey(attributes);
+        String dimKey = extractDimensionKey(attributes);
+        String ratingKey = extractRatingKey(attributes);
+
+        String serialStr = extractSerialFromProvisional(provisionalRef);
+        if (serialStr == null) {
+            long serial = allocateSerial(category);
+            serialStr = String.format("%06d", serial);
+        }
+
+        String baseCode = String.format("NUMM-%s-%s-%s-%s-%s", commodity, matKey, dimKey, ratingKey, serialStr);
         char checkChar = com.sih.materialmaster.util.Iso7064Mod3736.computeCheckChar(
                 baseCode.replace("-", ""));
         return baseCode + "-" + checkChar;
@@ -63,11 +88,97 @@ public class NationalCodeGenerator {
 
     /**
      * Generates a provisional reference for candidate groups awaiting human review.
-     * e.g. PROV-2026-000101
+     * Synchronized with UNSPSC commodity code and serial sequence (e.g. PROV-401407-000042).
      */
+    public String generateProvisionalRef(MaterialCategory category, long id) {
+        String commodity = commodityCode(category);
+        return String.format("PROV-%s-%06d", commodity, id);
+    }
+
+    public String commodityCode(MaterialCategory category) {
+        String segment = category != null && category.getCodeSegment() != null ? category.getCodeSegment() : "40";
+        String family = category != null && category.getCodeFamily() != null ? category.getCodeFamily() : "14";
+        String clazz = category != null && category.getCodeClass() != null ? category.getCodeClass() : "07";
+        return String.format("%2s%2s%2s", segment, family, clazz).replace(' ', '0');
+    }
+
     public String generateProvisionalRef(long id) {
-        int currentYear = Year.now().getValue();
-        return String.format("PROV-%d-%06d", currentYear, id);
+        return generateProvisionalRef(null, id);
+    }
+
+    public String extractSerialFromProvisional(String provisionalRef) {
+        if (provisionalRef != null && provisionalRef.contains("-")) {
+            String[] parts = provisionalRef.split("-");
+            String last = parts[parts.length - 1];
+            if (last.matches("\\d+")) {
+                try {
+                    return String.format("%06d", Long.parseLong(last));
+                } catch (Exception ignored) {}
+            }
+        }
+        return null;
+    }
+
+    private String extractMaterialKey(Map<String, Object> attrs) {
+        if (attrs == null || attrs.isEmpty()) return "XX";
+        String m = getAttrString(attrs, "material_type", "material", "grade", "extracted_material_type");
+        if (m == null) return "CS";
+        m = m.toUpperCase();
+        if (m.contains("STAINLESS") || m.contains("SS") || m.contains("304") || m.contains("316")) return "SS";
+        if (m.contains("CARBON") || m.contains("CS") || m.contains("A106") || m.contains("A53")) return "CS";
+        if (m.contains("ALLOY") || m.contains("AS")) return "AS";
+        if (m.contains("CAST IRON") || m.contains("CI")) return "CI";
+        if (m.contains("BRASS") || m.contains("BRONZE") || m.contains("BR")) return "BR";
+        if (m.contains("PVC") || m.contains("CPVC") || m.contains("UPVC") || m.contains("PLASTIC")) return "PV";
+        if (m.contains("ALUM") || m.contains("AL")) return "AL";
+        String clean = m.replaceAll("[^A-Z0-9]", "");
+        return clean.length() >= 2 ? clean.substring(0, 2) : (clean.length() == 1 ? clean + "X" : "XX");
+    }
+
+    private String extractDimensionKey(Map<String, Object> attrs) {
+        if (attrs == null || attrs.isEmpty()) return "000";
+        String d = getAttrString(attrs, "nominal_size_mm", "dimension", "size", "diameter", "bore_diameter_mm", "extracted_dimension");
+        if (d == null) return "000";
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("(\\d+(?:\\.\\d+)?)").matcher(d);
+        if (matcher.find()) {
+            try {
+                double parsed = Double.parseDouble(matcher.group(1));
+                if (d.contains("\"") || d.toUpperCase().contains("INCH")) {
+                    parsed *= 25.4;
+                }
+                int val = (int) Math.round(parsed);
+                return String.format("%03d", Math.min(999, val));
+            } catch (Exception ignored) {}
+        }
+        return "000";
+    }
+
+    private String extractRatingKey(Map<String, Object> attrs) {
+        if (attrs == null || attrs.isEmpty()) return "STD";
+        String r = getAttrString(attrs, "schedule", "pressure_class", "rating", "voltage_grade");
+        if (r == null) return "S40";
+        r = r.toUpperCase().replaceAll("\\s+", "");
+        if (r.contains("40") || r.contains("SCH40")) return "S40";
+        if (r.contains("80") || r.contains("SCH80")) return "S80";
+        if (r.contains("160")) return "160";
+        if (r.contains("150")) return "150";
+        if (r.contains("300")) return "300";
+        if (r.contains("600")) return "600";
+        if (r.contains("800")) return "800";
+        if (r.contains("900")) return "900";
+        if (r.contains("XS")) return "SXS";
+        String clean = r.replaceAll("[^A-Z0-9]", "");
+        return clean.length() >= 3 ? clean.substring(0, 3) : (clean + "STD").substring(0, 3);
+    }
+
+    private String getAttrString(Map<String, Object> attrs, String... keys) {
+        for (String k : keys) {
+            Object v = attrs.get(k);
+            if (v != null && !v.toString().isBlank()) {
+                return v.toString().trim();
+            }
+        }
+        return null;
     }
 
     /**

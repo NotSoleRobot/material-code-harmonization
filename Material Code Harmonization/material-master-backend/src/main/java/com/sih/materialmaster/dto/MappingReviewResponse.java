@@ -38,6 +38,9 @@ public class MappingReviewResponse {
     private ExplanationDto explanation;
 
     private String reviewedByName;
+    private Long reviewedByUserId;
+    private Long supersedesMappingId;
+    private Long supersededByMappingId;
     private LocalDateTime reviewedAt;
     private String decisionNotes;
     private LocalDateTime createdAt;

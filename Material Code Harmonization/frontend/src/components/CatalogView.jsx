@@ -25,6 +25,7 @@ export function CatalogView() {
   const query = searchParams.get("q") || "";
   const selectedCategory = searchParams.get("category") || "ALL";
   const viewMode = searchParams.get("view") || "canonical"; // 'canonical' or 'crossref'
+  const selectedStatus = searchParams.get("status") || "ACTIVE";
 
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFormat, setExportFormat] = useState("csv");
@@ -40,8 +41,8 @@ export function CatalogView() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["codesSearch", query],
-    queryFn: () => api.searchCodes(query),
+    queryKey: ["codesSearch", query, selectedStatus],
+    queryFn: () => api.searchCodes(query, selectedStatus),
   });
 
   const handleSearchChange = (e) => {
@@ -68,6 +69,16 @@ export function CatalogView() {
   const handleViewModeToggle = (mode) => {
     const newParams = new URLSearchParams(searchParams);
     newParams.set("view", mode);
+    setSearchParams(newParams);
+  };
+
+  const handleStatusFilter = (status) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (status === "ACTIVE") {
+      newParams.delete("status");
+    } else {
+      newParams.set("status", status);
+    }
     setSearchParams(newParams);
   };
 
@@ -146,22 +157,37 @@ export function CatalogView() {
               </select>
             </div>
 
-            {!isOperator && (
-              <div className="btn-group">
-                <button
-                  className={`btn btn-sm ${viewMode === "canonical" ? "btn-primary" : "btn-outline"}`}
-                  onClick={() => handleViewModeToggle("canonical")}
-                >
-                  <BookOpen size={13} aria-hidden="true" /> Canonical
-                </button>
-                <button
-                  className={`btn btn-sm ${viewMode === "crossref" ? "btn-primary" : "btn-outline"}`}
-                  onClick={() => handleViewModeToggle("crossref")}
-                >
-                  <FileSpreadsheet size={13} aria-hidden="true" /> Cross-Reference
-                </button>
-              </div>
-            )}
+            <>
+                {/* Status lifecycle tabs */}
+                <div className="btn-group" style={{ marginRight: "0.5rem" }}>
+                  {["ACTIVE", "PROPOSED", "SUPERSEDED"].map((s) => (
+                    <button
+                      key={s}
+                      className={`btn btn-sm ${selectedStatus === s ? "btn-primary" : "btn-outline"}`}
+                      onClick={() => handleStatusFilter(s)}
+                      id={`tab-status-${s.toLowerCase()}`}
+                    >
+                      {s === "ACTIVE" ? "Authoritative Master Catalog" : s === "PROPOSED" ? "Harmonized Provisional Pool" : "Superseded History"}
+                    </button>
+                  ))}
+                </div>
+
+                {/* View mode toggle */}
+                <div className="btn-group">
+                  <button
+                    className={`btn btn-sm ${viewMode === "canonical" ? "btn-primary" : "btn-outline"}`}
+                    onClick={() => handleViewModeToggle("canonical")}
+                  >
+                    <BookOpen size={13} aria-hidden="true" /> Canonical
+                  </button>
+                  <button
+                    className={`btn btn-sm ${viewMode === "crossref" ? "btn-primary" : "btn-outline"}`}
+                    onClick={() => handleViewModeToggle("crossref")}
+                  >
+                    <FileSpreadsheet size={13} aria-hidden="true" /> Cross-Reference
+                  </button>
+                </div>
+            </>
           </div>
         </div>
       </div>

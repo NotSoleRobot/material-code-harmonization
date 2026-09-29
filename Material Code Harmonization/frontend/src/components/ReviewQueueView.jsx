@@ -22,16 +22,18 @@ export function ReviewQueueView() {
   const [tierFilter, setTierFilter] = useState("ALL");
   const [cpseFilter, setCpseFilter] = useState("ALL");
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(0);
 
   // Actions
   const [bulkLoading, setBulkLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState(null);
   const [renderTime] = useState(() => Date.now());
 
-  const { data: mappings = [], isLoading: loading, error, refetch: reloadMappings } = useQuery({
-    queryKey: ["mappings", activeStatus],
-    queryFn: () => api.getMappings(activeStatus),
+  const { data: mappingPage, isLoading: loading, error, refetch: reloadMappings } = useQuery({
+    queryKey: ["mappings", activeStatus, currentPage],
+    queryFn: () => api.getMappingsPage(activeStatus, currentPage, 50),
   });
+  const mappings = useMemo(() => mappingPage?.content || [], [mappingPage]);
 
   const handleBulkApprove = async () => {
     if (!window.confirm("Are you sure you want to bulk-approve all HIGH confidence (≥85%) mappings in your assigned categories?")) {
@@ -42,8 +44,8 @@ export function ReviewQueueView() {
     try {
       const res = await api.bulkApproveHighConfidence();
       setActionMessage({
-        type: "success",
-        text: `Confirmed ${res.approvedCount ?? 0} high-confidence mappings. Eligible groups now await separate senior publication.`,
+        type: res.skippedCount > 0 ? "warning" : "success",
+        text: `Confirmed ${res.approvedCount ?? 0} of ${res.eligibleCount ?? 0} eligible mappings.${res.skippedCount ? ` ${res.skippedCount} skipped: ${res.skipped?.[0]?.reason || "individual review required"}.` : ""}`,
       });
       await reloadMappings();
     } catch (err) {
@@ -180,7 +182,7 @@ export function ReviewQueueView() {
                 <button
                   key={key}
                   className={`btn btn-sm ${activeStatus === key ? "btn-primary" : "btn-outline"}`}
-                  onClick={() => setActiveStatus(key)}
+                  onClick={() => { setActiveStatus(key); setCurrentPage(0); }}
                 >
                   {label}
                   {activeStatus === key && (
@@ -306,6 +308,13 @@ export function ReviewQueueView() {
             </tr>;
           })}</tbody>
         </Table>
+      )}
+      {(mappingPage?.totalPages || 0) > 1 && (
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.6rem" }}>
+          <button className="btn btn-outline btn-sm" disabled={currentPage === 0} onClick={() => setCurrentPage((p) => p - 1)}>Previous</button>
+          <span className="text-sm text-muted">Page {currentPage + 1} of {mappingPage.totalPages} · {mappingPage.totalElements} mappings</span>
+          <button className="btn btn-outline btn-sm" disabled={currentPage + 1 >= mappingPage.totalPages} onClick={() => setCurrentPage((p) => p + 1)}>Next</button>
+        </div>
       )}
     </div>
   );

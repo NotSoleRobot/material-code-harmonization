@@ -140,24 +140,6 @@ public class PythonMatchingClient implements MatchingClient {
     }
 
     @Override
-    public GenerateCodeResponse generateCode(String category, Map<String, Object> attributes) {
-        try {
-            Map<String, Object> body = new HashMap<>();
-            body.put("category", category);
-            body.put("attrs", attributes != null ? attributes : Collections.emptyMap());
-
-            return restClient.post()
-                    .uri("/generate-code")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .body(GenerateCodeResponse.class);
-        } catch (Exception ex) {
-            throw new MatchingServiceException("Python matching service /generate-code failed", ex);
-        }
-    }
-
-    @Override
     public List<AttributeExtractionResult> extractAttributes(List<MaterialInfoDto> materials) {
         try {
             List<Map<String, Object>> payloads = new ArrayList<>();

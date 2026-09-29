@@ -7,7 +7,6 @@ Endpoints
 GET  /health                  — liveness probe
 POST /compare                 — pairwise material comparison
 POST /find-matches            — ranked candidate retrieval for one material
-POST /generate-code           — propose a national material code
 
 All responses are JSON. All errors degrade gracefully — no endpoint
 raises an unhandled 500; malformed input returns a 400 with a clear message.
@@ -23,7 +22,7 @@ import os
 import secrets
 
 from flask import Flask, request, jsonify
-from matching.inference import compare_materials, find_matches, find_matches_batch, generate_national_code
+from matching.inference import compare_materials, find_matches, find_matches_batch
 from preprocessing.attribute_extraction import extract_attributes
 from data_generation.schemas import CATEGORIES
 from features.feature_engineering import FIELD_TO_SCHEMA_KEY
@@ -335,51 +334,6 @@ def find_matches_batch_endpoint():
 
     results = find_matches_batch(queries)
     return jsonify({"results": results}), 200
-
-
-# ---------------------------------------------------------------------------
-# POST /generate-code
-# ---------------------------------------------------------------------------
-
-@app.route("/generate-code", methods=["POST"])
-def generate_code_endpoint():
-    """
-    Propose a deterministic national material code for a given category +
-    set of identity-critical attributes.
-
-    NOTE: this only *proposes* a code. The actual minting/registration requires
-    human approval via the Spring Boot governance workflow (FR6 + FR8).
-
-    Request body (JSON):
-    {
-        "category": "PIPE",
-        "attrs": {
-            "material": "CS",
-            "grade":    "GrB",
-            "nominal_size_mm": 50
-        }
-    }
-
-    Response (JSON):
-    {
-        "proposed_code": "PIPE-A3F2B1C0",
-        "note": "Code is a proposal only. Requires reviewer approval before registration."
-    }
-    """
-    body = request.get_json(silent=True)
-    if not body:
-        return jsonify({"error": "Request body must be JSON"}), 400
-
-    category = body.get("category")
-    attrs = body.get("attrs", {})
-    if not category:
-        return jsonify({"error": "'category' is required"}), 400
-
-    proposed_code = generate_national_code(category, attrs)
-    return jsonify({
-        "proposed_code": proposed_code,
-        "note": "Code is a proposal only. Requires reviewer approval before registration."
-    }), 200
 
 
 # ---------------------------------------------------------------------------

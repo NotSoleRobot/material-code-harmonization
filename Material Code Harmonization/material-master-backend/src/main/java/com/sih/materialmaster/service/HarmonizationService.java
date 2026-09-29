@@ -342,8 +342,9 @@ public class HarmonizationService {
     private List<Material> findCandidateEntities(Material target) {
         List<Material> candidates;
         if (target.getCategory() != null) {
-            candidates = materialRepository.findCandidatesByCategory(
-                    target.getCategory().getCategoryId(), target.getMaterialId(), PageRequest.of(0, 50));
+            candidates = materialRepository.findRelevantCandidates(
+                    target.getCategory().getCategoryId(), target.getMaterialId(), target.getDescription(),
+                    target.getExtractedDimension(), target.getExtractedMaterialType());
             if (candidates.isEmpty()) {
                 candidates = materialRepository.findCandidatesAll(target.getMaterialId(), PageRequest.of(0, 50));
             }
@@ -372,14 +373,15 @@ public class HarmonizationService {
             newGroup.setSignatureAttributes("{}");
         }
         newGroup.setSignatureVersion(1);
-        newGroup.setStandardizedDescription(cleanStandardizedDescription(material.getDescription()));
+        newGroup.setStandardizedDescription(generateStandardizedDescription(material.getCategory(), attrs, material.getDescription()));
         newGroup.setStandardizedSpecification(material.getSpecification());
         newGroup.setStandardizedUom(material.getUnitOfMeasure() != null ? material.getUnitOfMeasure() : "NOS");
         newGroup.setCategory(material.getCategory());
         newGroup.setStatus("PROPOSED"); // Mint canonical NUMM code only on reviewer approval (BUG-03)
 
-        long serial = codeGenerator.getNextSerial();
-        newGroup.setProvisionalRef(codeGenerator.generateProvisionalRef(serial));
+        long serial = codeGenerator.allocateSerial(material.getCategory());
+        newGroup.setCodeSerial(serial);
+        newGroup.setProvisionalRef(codeGenerator.generateProvisionalRef(material.getCategory(), serial));
 
         try {
             return groupRepository.save(newGroup);
@@ -419,16 +421,94 @@ public class HarmonizationService {
     }
 
     private void createGroupRelation(MaterialGroup g1, MaterialGroup g2, String relationType, double confidence) {
-        Optional<GroupRelation> existing = groupRelationRepository.findRelationBetween(g1.getGroupId(), g2.getGroupId());
+        if (g1 == null || g2 == null || Objects.equals(g1.getGroupId(), g2.getGroupId())) {
+            return; // Reject self-relations
+        }
+        MaterialGroup first = g1.getGroupId() < g2.getGroupId() ? g1 : g2;
+        MaterialGroup second = g1.getGroupId() < g2.getGroupId() ? g2 : g1;
+
+        Optional<GroupRelation> existing = groupRelationRepository.findRelationBetween(first.getGroupId(), second.getGroupId());
         if (existing.isEmpty()) {
             GroupRelation gr = new GroupRelation();
-            gr.setGroupA(g1);
-            gr.setGroupB(g2);
+            gr.setGroupA(first);
+            gr.setGroupB(second);
             gr.setRelationType(relationType);
             gr.setConfidence(BigDecimal.valueOf(confidence).setScale(4, RoundingMode.HALF_UP));
             GroupRelation saved = groupRelationRepository.save(gr);
             auditService.logEvent(null, "GROUP_RELATION_CREATED", "GROUP_RELATION", saved.getRelationId(), null,
-                    relationType + ": " + g1.getGroupId() + " -> " + g2.getGroupId());
+                    relationType + ": " + first.getGroupId() + " <-> " + second.getGroupId());
+        }
+    }
+
+    private String generateStandardizedDescription(MaterialCategory category, Map<String, Object> attrs, String fallback) {
+        String catName = (category != null && category.getName() != null) ? category.getName().toUpperCase() : "GENERAL";
+        if (attrs == null || attrs.isEmpty()) {
+            return cleanStandardizedDescription(fallback);
+        }
+
+        StringBuilder sb = new StringBuilder();
+        if (catName.contains("PIPE") || catName.contains("TUBE")) {
+            sb.append("PIPE");
+            appendAttr(sb, attrs, "material_type", "material");
+            appendAttr(sb, attrs, "nominal_size_mm", "dimension", "size");
+            appendAttr(sb, attrs, "schedule");
+            appendAttr(sb, attrs, "standard_code", "standard");
+        } else if (catName.contains("VALVE")) {
+            sb.append("VALVE");
+            appendAttr(sb, attrs, "valve_type", "type");
+            appendAttr(sb, attrs, "material_type", "material");
+            appendAttr(sb, attrs, "nominal_size_mm", "dimension", "size");
+            appendAttr(sb, attrs, "pressure_class", "rating");
+            appendAttr(sb, attrs, "standard_code", "standard");
+        } else if (catName.contains("FLANGE")) {
+            sb.append("FLANGE");
+            appendAttr(sb, attrs, "flange_type", "type");
+            appendAttr(sb, attrs, "material_type", "material");
+            appendAttr(sb, attrs, "nominal_size_mm", "dimension", "size");
+            appendAttr(sb, attrs, "pressure_class", "rating");
+        } else if (catName.contains("PUMP")) {
+            sb.append("PUMP");
+            appendAttr(sb, attrs, "pump_type", "type");
+            appendAttr(sb, attrs, "capacity");
+            appendAttr(sb, attrs, "head");
+            appendAttr(sb, attrs, "material_type", "material");
+        } else if (catName.contains("BEARING")) {
+            sb.append("BEARING");
+            appendAttr(sb, attrs, "bearing_type", "type");
+            appendAttr(sb, attrs, "bore_diameter_mm", "dimension");
+            appendAttr(sb, attrs, "clearance");
+        } else if (catName.contains("FASTENER")) {
+            sb.append("FASTENER");
+            appendAttr(sb, attrs, "fastener_type", "type");
+            appendAttr(sb, attrs, "thread_size", "dimension");
+            appendAttr(sb, attrs, "length");
+            appendAttr(sb, attrs, "material_type", "material");
+        } else if (catName.contains("MOTOR")) {
+            sb.append("MOTOR");
+            appendAttr(sb, attrs, "power_rating", "power");
+            appendAttr(sb, attrs, "voltage");
+            appendAttr(sb, attrs, "rpm");
+        } else if (catName.contains("CABLE")) {
+            sb.append("CABLE");
+            appendAttr(sb, attrs, "core_count", "cores");
+            appendAttr(sb, attrs, "cross_section_sqmm", "size");
+            appendAttr(sb, attrs, "voltage_grade", "voltage");
+            appendAttr(sb, attrs, "insulation");
+        } else {
+            return cleanStandardizedDescription(fallback);
+        }
+
+        String result = sb.toString().trim();
+        return result.isEmpty() || result.equals(catName) ? cleanStandardizedDescription(fallback) : result;
+    }
+
+    private void appendAttr(StringBuilder sb, Map<String, Object> attrs, String... keys) {
+        for (String k : keys) {
+            Object v = attrs.get(k);
+            if (v != null && !v.toString().isBlank()) {
+                sb.append(", ").append(v.toString().trim().toUpperCase());
+                return;
+            }
         }
     }
 

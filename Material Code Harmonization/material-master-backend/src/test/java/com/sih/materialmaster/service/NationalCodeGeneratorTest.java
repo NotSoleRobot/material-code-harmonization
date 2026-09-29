@@ -14,8 +14,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 class NationalCodeGeneratorTest {
 
@@ -29,6 +29,11 @@ class NationalCodeGeneratorTest {
         when(entityManager.createNativeQuery("SELECT nextval('numm_serial_seq')"))
                 .thenReturn(sequenceQuery);
         when(sequenceQuery.getSingleResult()).thenReturn(101L);
+        Query classSerialQuery = mock(Query.class);
+        when(entityManager.createNativeQuery(argThat(sql -> sql != null && sql.startsWith("INSERT INTO material_code_serial"))))
+                .thenReturn(classSerialQuery);
+        when(classSerialQuery.setParameter(anyString(), any())).thenReturn(classSerialQuery);
+        when(classSerialQuery.getSingleResult()).thenReturn(101L);
         generator = new NationalCodeGenerator(entityManager);
 
         commodityCategory = new MaterialCategory();
@@ -45,9 +50,8 @@ class NationalCodeGeneratorTest {
         String code = generator.mintNationalCode(commodityCategory);
 
         assertNotNull(code);
-        // Format: NUMM-40-14-18-000101-K
-        assertTrue(code.startsWith("NUMM-40-14-18-"), "Code must start with NUMM-segment-family-class");
-        assertEquals(22, code.length(), "Code format should be 22 characters");
+        // Semi-significant format: NUMM-401418-XX-000-000-000101-K
+        assertTrue(code.startsWith("NUMM-401418-"), "Code must start with NUMM-segment-family-class");
 
         // Validate ISO 7064 checksum
         assertTrue(Iso7064Mod3736.validate(code), "Minted national code must pass ISO 7064 checksum validation");

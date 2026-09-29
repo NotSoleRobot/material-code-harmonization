@@ -87,7 +87,7 @@ class HarmonizationServiceTest {
                 .thenReturn(new NationalCodeGenerator.SignatureResult("sig_pipe_partial", false));
 
         when(materialRepository.findById(100L)).thenReturn(Optional.of(queryMaterial));
-        when(materialRepository.findCandidatesByCategory(anyLong(), anyLong(), any(Pageable.class)))
+        when(materialRepository.findRelevantCandidates(anyLong(), anyLong(), anyString(), any(), any()))
                 .thenReturn(List.of(candidateMaterial));
 
         MatchCandidateResultDto candidateResult = new MatchCandidateResultDto();
@@ -104,7 +104,7 @@ class HarmonizationServiceTest {
         FindMatchesResponse findResponse = new FindMatchesResponse(List.of(candidateResult));
         when(matchingClient.findMatches(any(), anyList(), eq(5))).thenReturn(findResponse);
 
-        when(codeGenerator.generateProvisionalRef(anyLong())).thenReturn("PROV-2026-000500");
+        when(codeGenerator.generateProvisionalRef(any(), anyLong())).thenReturn("PROV-2026-000500");
 
         MaterialGroup savedGroup = new MaterialGroup();
         savedGroup.setGroupId(500L);
@@ -133,10 +133,10 @@ class HarmonizationServiceTest {
                 .thenReturn(new NationalCodeGenerator.SignatureResult("sig_pipe_novel", false));
 
         when(materialRepository.findById(100L)).thenReturn(Optional.of(queryMaterial));
-        when(materialRepository.findCandidatesByCategory(anyLong(), anyLong(), any(Pageable.class)))
+        when(materialRepository.findRelevantCandidates(anyLong(), anyLong(), anyString(), any(), any()))
                 .thenReturn(Collections.emptyList());
 
-        when(codeGenerator.generateProvisionalRef(anyLong())).thenReturn("PROV-2026-000501");
+        when(codeGenerator.generateProvisionalRef(any(), anyLong())).thenReturn("PROV-2026-000501");
 
         MaterialGroup savedGroup = new MaterialGroup();
         savedGroup.setGroupId(501L);

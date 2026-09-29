@@ -72,6 +72,16 @@ public class HostedAccountInitializer implements ApplicationRunner {
                     userRepository.save(user);
                 });
             }
+        } else {
+            // The role accounts are part of the seeded operational workflow.
+            // Re-enable accounts that an earlier hosted deployment disabled so
+            // Operator, Reviewer and Senior Reviewer access recovers on restart.
+            for (String email : SEEDED_NON_ADMIN_EMAILS) {
+                userRepository.findByEmail(email).ifPresent(user -> {
+                    user.setActive(true);
+                    userRepository.save(user);
+                });
+            }
         }
     }
 }

@@ -14,6 +14,8 @@ import com.sih.materialmaster.service.AuditService;
 import com.sih.materialmaster.service.GovernanceService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -59,30 +61,39 @@ public class MaterialMappingController {
      * FR8: Review queue. Filtered to reviewer's assigned commodity classes if assignments exist (W4.1).
      */
     @GetMapping
-    public List<MappingReviewResponse> listMappings(
+    public Map<String, Object> listMappings(
             @RequestParam(defaultValue = "PENDING") String status,
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
-        List<MaterialMapping> mappings;
+        PageRequest pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
+        Page<MaterialMapping> mappings;
         if ("REVIEWER".equals(currentUser.getRole()) && categoryId != null &&
                 !reviewerAssignmentRepository.findCategoryIdsByUserId(currentUser.getUserId()).contains(categoryId)) {
             throw new org.springframework.security.access.AccessDeniedException("Category is not assigned to you");
         }
         if (categoryId != null) {
-            mappings = mappingRepository.findByStatusAndCategoriesList(status.toUpperCase(), List.of(categoryId));
+            mappings = mappingRepository.findByStatusAndCategories(status.toUpperCase(), List.of(categoryId), pageable);
         } else if (currentUser != null && "REVIEWER".equalsIgnoreCase(currentUser.getRole())) {
             List<Long> assignedCats = reviewerAssignmentRepository.findCategoryIdsByUserId(currentUser.getUserId());
             if (!assignedCats.isEmpty()) {
-                mappings = mappingRepository.findByStatusAndCategoriesList(status.toUpperCase(), assignedCats);
+                mappings = mappingRepository.findByStatusAndCategories(status.toUpperCase(), assignedCats, pageable);
             } else {
-                mappings = List.of();
+                mappings = Page.empty(pageable);
             }
         } else {
-            mappings = mappingRepository.findByStatus(status.toUpperCase());
+            mappings = mappingRepository.findByStatus(status.toUpperCase(), pageable);
         }
 
-        return mappings.stream().map(this::toReviewResponse).toList();
+        return Map.of(
+                "content", mappings.getContent().stream().map(this::toReviewResponse).toList(),
+                "page", mappings.getNumber(),
+                "size", mappings.getSize(),
+                "totalElements", mappings.getTotalElements(),
+                "totalPages", mappings.getTotalPages()
+        );
     }
 
     @GetMapping("/{id}")
@@ -158,8 +169,19 @@ public class MaterialMappingController {
         User reviewer = userRepository.findById(currentUser.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
 
-        int count = governanceService.bulkApproveHighConfidence(reviewer, categoryId);
-        return ResponseEntity.ok(Map.of("message", "Successfully bulk-approved " + count + " High Confidence mappings.", "approvedCount", count));
+        GovernanceService.BulkApprovalResult result = governanceService.bulkApproveHighConfidence(reviewer, categoryId);
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/{id}/approve-and-publish")
+    @PreAuthorize("hasAnyRole('SENIOR_REVIEWER', 'ADMIN')")
+    public ResponseEntity<Map<String, String>> approveAndPublish(
+            @PathVariable Long id, @AuthenticationPrincipal UserPrincipal currentUser) {
+        User actor = userRepository.findById(currentUser.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
+        String code = governanceService.approveAndPublish(id, actor);
+        return ResponseEntity.ok(Map.of("code", code, "status", "ACTIVE",
+                "message", "Mapping approved and national code published"));
     }
 
     /**
@@ -211,6 +233,8 @@ public class MaterialMappingController {
                 a.getEntityId(),
                 a.getOldValue(),
                 a.getNewValue(),
+                a.getPrevHash(),
+                a.getRowHash(),
                 a.getTimestamp()
         );
     }
@@ -253,7 +277,10 @@ public class MaterialMappingController {
 
         if (mapping.getReviewedBy() != null) {
             resp.setReviewedByName(mapping.getReviewedBy().getName());
+            resp.setReviewedByUserId(mapping.getReviewedBy().getUserId());
         }
+        resp.setSupersedesMappingId(mapping.getSupersedesMapping() != null ? mapping.getSupersedesMapping().getMappingId() : null);
+        resp.setSupersededByMappingId(mapping.getSupersededByMapping() != null ? mapping.getSupersededByMapping().getMappingId() : null);
         resp.setReviewedAt(mapping.getReviewedAt());
         resp.setDecisionNotes(mapping.getDecisionNotes());
         resp.setCreatedAt(mapping.getCreatedAt());

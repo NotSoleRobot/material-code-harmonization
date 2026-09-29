@@ -89,7 +89,7 @@ export function LoginView() {
               <span>National Unified Material Master</span>
             </div>
           </div>
-          <div className="login-masthead-meta">Ministry of Petroleum & Natural Gas</div>
+          <div className="login-masthead-meta">Enterprise Material Governance</div>
         </div>
       </header>
 
@@ -102,7 +102,7 @@ export function LoginView() {
               <h2 id="login-title">Sign in to NUMM Portal</h2>
             </div>
           </div>
-          <p className="login-panel-sub">Enter your government or enterprise credentials.</p>
+          <p className="login-panel-sub">Enter your enterprise credentials.</p>
 
           {error && (
             <div className="login-alert" role="alert" aria-live="assertive">

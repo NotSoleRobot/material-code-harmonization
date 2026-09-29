@@ -47,8 +47,8 @@ public class CodeController {
                 .or(() -> groupRepository.findByProvisionalRef(clean))
                 .orElseThrow(() -> new IllegalArgumentException("No national material group found for code: " + code));
 
-        if (!"ACTIVE".equals(group.getStatus())) {
-            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Published code not found");
+        if (!"ACTIVE".equals(group.getStatus()) && !"PROPOSED".equals(group.getStatus()) && !"SUPERSEDED".equals(group.getStatus())) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Code not found: " + code);
         }
         return ResponseEntity.ok(toDetailsDto(group, viewer));
     }
@@ -65,14 +65,17 @@ public class CodeController {
         dto.setCode(clean);
         dto.setValid(isValid);
 
-        // Parse structure: NUMM-SS-FF-CC-NNNNNN-K
+        // Parse structure: NUMM-CCCCCC-MM-DDD-RRR-NNNNNN-K
         String[] parts = clean.split("-");
-        if (parts.length >= 6) {
-            dto.setSegment(parts[1]);
-            dto.setFamily(parts[2]);
-            dto.setCommodityClass(parts[3]);
-            dto.setSerial(parts[4]);
-            dto.setCheckCharacter(parts[5]);
+        if (parts.length == 7 && parts[1].length() == 6) {
+            dto.setSegment(parts[1].substring(0, 2));
+            dto.setFamily(parts[1].substring(2, 4));
+            dto.setCommodityClass(parts[1].substring(4, 6));
+            dto.setMaterialKey(parts[2]);
+            dto.setDimensionKey(parts[3]);
+            dto.setRatingKey(parts[4]);
+            dto.setSerial(parts[5]);
+            dto.setCheckCharacter(parts[6]);
         }
 
         if (isValid) {
@@ -88,12 +91,21 @@ public class CodeController {
      * Search canonical national codes by text or partial code.
      */
     @GetMapping("/search")
-    public List<NationalCodeDetailsDto> searchCodes(@RequestParam(required = false) String q,
+    public List<NationalCodeDetailsDto> searchCodes(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false, defaultValue = "ACTIVE") String status,
             @AuthenticationPrincipal UserPrincipal viewer) {
         String query = (q != null && !q.isBlank()) ? q.trim() : "";
-        List<MaterialGroup> groups = query.isBlank()
-                ? groupRepository.findByStatus("ACTIVE", PageRequest.of(0, 50)).getContent()
-                : groupRepository.searchGroups(query, "ACTIVE", PageRequest.of(0, 50)).getContent();
+        String effectiveStatus = ("ALL".equalsIgnoreCase(status)) ? null : (status != null && !status.isBlank() ? status.trim().toUpperCase() : "ACTIVE");
+
+        List<MaterialGroup> groups;
+        if (query.isBlank()) {
+            groups = (effectiveStatus != null)
+                    ? groupRepository.findByStatus(effectiveStatus, PageRequest.of(0, 50)).getContent()
+                    : groupRepository.findAll(PageRequest.of(0, 50)).getContent();
+        } else {
+            groups = groupRepository.searchGroups(query, effectiveStatus, PageRequest.of(0, 50)).getContent();
+        }
 
         return groups.stream().map(group -> toDetailsDto(group, viewer)).toList();
     }
@@ -140,8 +152,9 @@ public class CodeController {
         Set<String> distinctCpses = new HashSet<>();
         List<NationalCodeDetailsDto.MemberMaterialDto> members = new ArrayList<>();
 
+        boolean isProposed = "PROPOSED".equals(group.getStatus());
         for (MaterialMapping mm : mappings) {
-            if (!"CONFIRMED".equals(mm.getStatus())) continue;
+            if (!"CONFIRMED".equals(mm.getStatus()) && !(isProposed && "PENDING".equals(mm.getStatus()))) continue;
             Material m = mm.getMaterial();
             if (viewer != null && "OPERATOR".equals(viewer.getRole())
                     && (m.getCpse() == null || !Objects.equals(viewer.getCpseId(), m.getCpse().getCpseId()))) continue;
@@ -155,6 +168,7 @@ public class CodeController {
             mDto.setRawDescription(m.getDescription());
             mDto.setRawSpecification(m.getSpecification());
             mDto.setUnitOfMeasure(m.getUnitOfMeasure());
+            mDto.setNominalPrice(m.getNominalPrice());
             mDto.setMappingStatus(mm.getStatus());
             mDto.setConfidenceScore(mm.getConfidenceScore() != null ? mm.getConfidenceScore().doubleValue() : null);
             mDto.setConfidenceTier(mm.getConfidenceTier());

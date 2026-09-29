@@ -27,11 +27,15 @@ public interface MaterialGroupRepository extends JpaRepository<MaterialGroup, Lo
 
     long countByStatus(String status);
 
-    @Query("SELECT g FROM MaterialGroup g WHERE " +
-           "(:status IS NULL OR g.status = :status) AND " +
+    @Query("SELECT DISTINCT g FROM MaterialGroup g " +
+           "LEFT JOIN MaterialMapping mm ON mm.group = g " +
+           "LEFT JOIN mm.material m " +
+           "WHERE (:status IS NULL OR g.status = :status) AND " +
            "(:query IS NULL OR LOWER(g.commonMaterialCode) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "OR LOWER(g.standardizedDescription) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "OR LOWER(g.provisionalRef) LIKE LOWER(CONCAT('%', :query, '%')))")
+           "OR LOWER(g.provisionalRef) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(m.cpseMaterialCode) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(m.description) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<MaterialGroup> searchGroups(@Param("query") String query, @Param("status") String status, Pageable pageable);
 
     @Query("SELECT DISTINCT g FROM MaterialGroup g WHERE g.status = 'PROPOSED' AND EXISTS (" +

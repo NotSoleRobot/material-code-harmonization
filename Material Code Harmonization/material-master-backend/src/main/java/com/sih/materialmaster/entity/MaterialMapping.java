@@ -61,6 +61,14 @@ public class MaterialMapping {
     @Column(name = "decision_notes", columnDefinition = "TEXT")
     private String decisionNotes;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supersedes_mapping_id")
+    private MaterialMapping supersedesMapping;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "superseded_by_mapping_id")
+    private MaterialMapping supersededByMapping;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

@@ -119,6 +119,10 @@ public class AdminUserController {
             }
             cpse = cpseRepository.findById(request.getCpseId())
                     .orElseThrow(() -> new IllegalArgumentException("No CPSE found with ID: " + request.getCpseId()));
+        } else if (request.getCpseId() != null) {
+            // Optional CPSE for Reviewers to support Conflict of Interest (COI) isolation tests
+            cpse = cpseRepository.findById(request.getCpseId())
+                    .orElseThrow(() -> new IllegalArgumentException("No CPSE found with ID: " + request.getCpseId()));
         }
 
         User user = new User();

@@ -80,7 +80,7 @@ services:
       - key: BOOTSTRAP_ADMIN_PASSWORD
         sync: false
       - key: DISABLE_SEEDED_DEMO_ACCOUNTS
-        value: true
+        value: false
     buildFilter:
       paths:
         - Material Code Harmonization/material-master-backend/**

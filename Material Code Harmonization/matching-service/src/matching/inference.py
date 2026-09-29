@@ -5,14 +5,12 @@ to call. Loads the trained artifacts once, then exposes:
     compare_materials(record_a, record_b) -> structured result with explanation
     find_matches(material, candidate_pool) -> ranked candidates (category-blocked, not O(N^2))
     find_matches_batch(queries) -> batch ranked candidates
-    generate_national_code(category, attrs) -> deterministic canonical code
 
 WP3 / D4 — Confidence semantics:
     match_probability: sum of probabilities for {EXACT_DUPLICATE, NEAR_DUPLICATE, FUNCTIONALLY_EQUIVALENT}
     label_probability: probability of the top predicted class label
     confidence: alias for match_probability
 """
-import hashlib
 import json
 import os
 
@@ -211,12 +209,3 @@ def find_matches_batch(queries: list) -> list:
 def normalize_text_for_prefilter(record: dict) -> str:
     from features.feature_engineering import normalize_text
     return normalize_text(f'{_safe_get(record, "description", "")} {_safe_get(record, "specification", "")}')
-
-
-def generate_national_code(category: str, attrs: dict) -> str:
-    """Propose a deterministic code based on category and critical attributes."""
-    schema = CATEGORIES.get(category.upper(), {})
-    critical_keys = sorted(set(schema.get("identity_critical", []) + schema.get("variant_critical", [])))
-    signature = json.dumps({k: attrs.get(k) for k in critical_keys}, sort_keys=True)
-    digest = hashlib.sha256(signature.encode()).hexdigest()[:8].upper()
-    return f"{category.upper()[:4]}-{digest}"

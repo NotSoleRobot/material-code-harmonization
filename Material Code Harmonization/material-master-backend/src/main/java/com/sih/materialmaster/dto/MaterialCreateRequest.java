@@ -28,6 +28,8 @@ public class MaterialCreateRequest {
 
     private String unitOfMeasure;
 
+    private java.math.BigDecimal nominalPrice;
+
     // Optional - a CPSE Operator may not know the category yet;
     // AI-assigned categorization can happen later (FR3).
     private Long categoryId;

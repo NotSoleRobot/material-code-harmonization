@@ -38,6 +38,7 @@ public class NationalCodeDetailsDto {
         private String rawDescription;
         private String rawSpecification;
         private String unitOfMeasure;
+        private java.math.BigDecimal nominalPrice;
         private String mappingStatus;
         private Double confidenceScore;
         private String confidenceTier;

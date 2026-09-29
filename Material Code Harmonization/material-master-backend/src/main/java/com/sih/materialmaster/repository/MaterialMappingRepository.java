@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
@@ -48,9 +49,11 @@ public interface MaterialMappingRepository extends JpaRepository<MaterialMapping
 
     List<MaterialMapping> findByStatus(String status);
 
+    @EntityGraph(attributePaths = {"material", "material.cpse", "group", "group.category", "reviewedBy"})
     Page<MaterialMapping> findByStatus(String status, Pageable pageable);
 
     @Query("SELECT mm FROM MaterialMapping mm WHERE mm.status = :status AND mm.group.category.categoryId IN :categoryIds")
+    @EntityGraph(attributePaths = {"material", "material.cpse", "group", "group.category", "reviewedBy"})
     Page<MaterialMapping> findByStatusAndCategories(@Param("status") String status, @Param("categoryIds") Collection<Long> categoryIds, Pageable pageable);
 
     @Query("SELECT mm FROM MaterialMapping mm WHERE mm.status = :status AND mm.group.category.categoryId IN :categoryIds")
@@ -59,6 +62,10 @@ public interface MaterialMappingRepository extends JpaRepository<MaterialMapping
     List<MaterialMapping> findByGroup_GroupId(Long groupId);
 
     List<MaterialMapping> findByGroup_GroupIdAndStatus(Long groupId, String status);
+
+    @Query("SELECT mm FROM MaterialMapping mm JOIN FETCH mm.material m JOIN FETCH m.cpse " +
+            "LEFT JOIN FETCH mm.reviewedBy WHERE mm.group.groupId IN :groupIds AND mm.status = 'CONFIRMED'")
+    List<MaterialMapping> findConfirmedForGroups(@Param("groupIds") Collection<Long> groupIds);
 
     long countByStatus(String status);
 

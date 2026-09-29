@@ -14,6 +14,9 @@ public class CodeValidationDto {
     private String segment;
     private String family;
     private String commodityClass;
+    private String materialKey;
+    private String dimensionKey;
+    private String ratingKey;
     private String serial;
     private String message;
 }

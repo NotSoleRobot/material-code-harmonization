@@ -20,6 +20,7 @@ public class MaterialResponse {
     private String description;
     private String specification;
     private String unitOfMeasure;
+    private java.math.BigDecimal nominalPrice;
     private Long categoryId;
     private LocalDateTime createdAt;
 }

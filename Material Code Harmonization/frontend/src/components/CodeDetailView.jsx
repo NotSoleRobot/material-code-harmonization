@@ -159,6 +159,7 @@ export function CodeDetailView() {
                 <th scope="col">Plant Material Code</th>
                 <th scope="col">Raw Plant Description</th>
                 <th scope="col">Unit</th>
+                <th scope="col">Nominal Price</th>
                 <th scope="col">Status</th>
                 <th scope="col" className="text-right">Match Confidence</th>
               </tr>
@@ -174,6 +175,11 @@ export function CodeDetailView() {
                       {m.rawSpecification && <div className="text-xs text-muted">{m.rawSpecification}</div>}
                     </td>
                     <td>{m.unitOfMeasure || "NOS"}</td>
+                    <td className="font-mono text-xs">
+                      {m.nominalPrice != null
+                        ? `₹${Number(m.nominalPrice).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : "—"}
+                    </td>
                     <td>
                       <span className={`badge ${m.mappingStatus === "CONFIRMED" ? "badge-success" : "badge-warning"}`}>
                         {m.mappingStatus}
@@ -186,7 +192,7 @@ export function CodeDetailView() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted p-3">
+                  <td colSpan={7} className="text-center text-muted p-3">
                     No CPSE items linked yet.
                   </td>
                 </tr>

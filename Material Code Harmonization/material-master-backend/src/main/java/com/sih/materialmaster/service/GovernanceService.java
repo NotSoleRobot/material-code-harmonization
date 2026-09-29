@@ -173,7 +173,7 @@ public class GovernanceService {
      * Server-side guard: Additionally requires zero identity-critical conflicts in explanation.
      */
     @Transactional
-    public int bulkApproveHighConfidence(User reviewer, Long categoryId) {
+    public BulkApprovalResult bulkApproveHighConfidence(User reviewer, Long categoryId) {
         if ("REVIEWER".equals(reviewer.getRole()) && categoryId != null && !reviewerAssignmentRepository.findCategoryIdsByUserId(reviewer.getUserId()).contains(categoryId)) {
             throw new AccessDeniedException("Category is not assigned to you");
         }
@@ -190,16 +190,18 @@ public class GovernanceService {
         }
 
         int count = 0;
+        List<BulkApprovalFailure> skipped = new ArrayList<>();
         for (MaterialMapping mm : candidates) {
             // Server-side check: Skip if explanation has identity-critical conflicts (D4)
             if (hasIdentityCriticalConflicts(mm.getExplanationJson())) {
+                skipped.add(new BulkApprovalFailure(mm.getMappingId(), "Identity-critical conflict requires individual review"));
                 continue;
             }
             try {
                 decideMapping(mm.getMappingId(), reviewer, "CONFIRMED", "Automated batch sign-off on High Confidence candidate");
                 count++;
             } catch (Exception e) {
-                // Ignore single item failures in bulk run (e.g. COI)
+                skipped.add(new BulkApprovalFailure(mm.getMappingId(), e.getMessage() == null ? "Approval failed" : e.getMessage()));
             }
         }
 
@@ -214,7 +216,34 @@ public class GovernanceService {
             );
         }
 
-        return count;
+        return new BulkApprovalResult(candidates.size(), count, skipped.size(), skipped);
+    }
+
+    public record BulkApprovalFailure(Long mappingId, String reason) {}
+    public record BulkApprovalResult(int eligibleCount, int approvedCount, int skippedCount,
+                                     List<BulkApprovalFailure> skipped) {}
+
+    /** Single command for the eligible high-confidence fast-track path. */
+    @Transactional
+    public String approveAndPublish(Long mappingId, User actor) {
+        MaterialMapping mapping = mappingRepository.findById(mappingId)
+                .orElseThrow(() -> new IllegalArgumentException("Mapping not found: " + mappingId));
+        if (mapping.getConfidenceScore() == null || mapping.getConfidenceScore().doubleValue() < 0.85
+                || !"HIGH".equalsIgnoreCase(mapping.getConfidenceTier())) {
+            throw new IllegalStateException("Fast-track requires a HIGH confidence score of at least 85%");
+        }
+        if (hasIdentityCriticalConflicts(mapping.getExplanationJson())) {
+            throw new IllegalStateException("Fast-track is unavailable because identity-critical conflicts require review");
+        }
+        if ("PENDING".equalsIgnoreCase(mapping.getStatus())) {
+            if (!"ADMIN".equalsIgnoreCase(actor.getRole())) {
+                throw new AccessDeniedException("Four-eyes policy: a senior reviewer cannot approve and publish the same mapping. Ask another reviewer to confirm it first.");
+            }
+            mapping = decideMapping(mappingId, actor, "CONFIRMED", "Administrative high-confidence fast-track approval");
+        } else if (!"CONFIRMED".equalsIgnoreCase(mapping.getStatus())) {
+            throw new IllegalStateException("Only PENDING or CONFIRMED mappings can be fast-tracked");
+        }
+        return mintGroup(mapping.getGroup().getGroupId(), actor);
     }
 
     private boolean hasIdentityCriticalConflicts(String explanationJson) {
@@ -266,13 +295,26 @@ public class GovernanceService {
             throw new IllegalStateException("At least one CONFIRMED mapping is required before publishing a group");
         }
 
-        // Four-eyes rule: The publisher cannot be the same user who confirmed the underlying mapping
-        if (confirmed.stream().anyMatch(m -> m.getReviewedBy() != null && Objects.equals(m.getReviewedBy().getUserId(), approver.getUserId()))) {
-            throw new AccessDeniedException("Four-eyes policy violation: The publisher cannot be the user who confirmed the underlying mapping.");
+        // Four-eyes rule: The publisher cannot be the same user who confirmed the underlying mapping (unless ADMIN override)
+        boolean isSelfReview = confirmed.stream().anyMatch(
+                m -> m.getReviewedBy() != null && Objects.equals(m.getReviewedBy().getUserId(), approver.getUserId()));
+        if (isSelfReview && !"ADMIN".equalsIgnoreCase(approver.getRole())) {
+            throw new AccessDeniedException("Four-eyes policy violation: A second authorized reviewer must publish the national code.");
         }
 
-        // Mint authoritative National Material Code with ISO 7064 MOD 37,36 checksum
-        String code = codeGenerator.mintNationalCode(group.getCategory());
+        // Mint authoritative Semi-Significant National Material Code with ISO 7064 MOD 37,36 checksum
+        Map<String, Object> attrs = new HashMap<>();
+        if (group.getSignatureAttributes() != null) {
+            try {
+                attrs = objectMapper.readValue(group.getSignatureAttributes(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+            } catch (Exception ignored) {}
+        }
+        if (group.getCodeSerial() == null) {
+            String parsed = codeGenerator.extractSerialFromProvisional(group.getProvisionalRef());
+            group.setCodeSerial(parsed != null ? Long.parseLong(parsed) : codeGenerator.allocateSerial(group.getCategory()));
+            group.setProvisionalRef(codeGenerator.generateProvisionalRef(group.getCategory(), group.getCodeSerial()));
+        }
+        String code = codeGenerator.mintNationalCode(group.getCategory(), attrs, group.getProvisionalRef());
         group.setCommonMaterialCode(code);
         group.setStatus("ACTIVE");
         groupRepository.save(group);
@@ -304,21 +346,37 @@ public class GovernanceService {
                 .orElseThrow(() -> new IllegalArgumentException("Mapping not found: " + mappingId));
 
         String oldStatus = mapping.getStatus();
-
-        // Audit supersede event first
-        auditService.logEvent(
-                admin,
-                "MAPPING_SUPERSEDED",
-                "MATERIAL_MAPPING",
-                mapping.getMappingId(),
-                "status: " + oldStatus,
-                "Superseded by Admin. Justification: " + mandatoryReason
-        );
+        if (!Set.of("CONFIRMED", "REJECTED").contains(oldStatus.toUpperCase())) {
+            throw new IllegalStateException("Only a decided mapping can be superseded");
+        }
 
         String targetStatus = ("CONFIRMED".equalsIgnoreCase(newDecision) || "APPROVE".equalsIgnoreCase(newDecision))
                 ? "CONFIRMED" : "REJECTED";
 
-        // Direct apply without COI restriction
-        return applyDecision(mapping, admin, targetStatus, "ADMIN OVERRIDE: " + mandatoryReason);
+        mapping.setStatus("SUPERSEDED");
+        mapping.setDecisionNotes((mapping.getDecisionNotes() == null ? "" : mapping.getDecisionNotes() + " | ") +
+                "Superseded: " + mandatoryReason);
+        mappingRepository.saveAndFlush(mapping);
+
+        MaterialMapping replacement = new MaterialMapping();
+        replacement.setMaterial(mapping.getMaterial());
+        replacement.setGroup(mapping.getGroup());
+        replacement.setConfidenceScore(mapping.getConfidenceScore());
+        replacement.setConfidenceTier(mapping.getConfidenceTier());
+        replacement.setExplanationJson(mapping.getExplanationJson());
+        replacement.setMatchBasis(mapping.getMatchBasis());
+        replacement.setStatus(targetStatus);
+        replacement.setReviewedBy(admin);
+        replacement.setReviewedAt(LocalDateTime.now());
+        replacement.setDecisionNotes("OVERRIDE: " + mandatoryReason);
+        replacement.setSupersedesMapping(mapping);
+        replacement = mappingRepository.saveAndFlush(replacement);
+        mapping.setSupersededByMapping(replacement);
+        mappingRepository.save(mapping);
+
+        auditService.logEvent(admin, "MAPPING_SUPERSEDED", "MATERIAL_MAPPING", mapping.getMappingId(),
+                "status: " + oldStatus,
+                "status: SUPERSEDED, replacementMappingId: " + replacement.getMappingId() + ", justification: " + mandatoryReason);
+        return replacement;
     }
 }

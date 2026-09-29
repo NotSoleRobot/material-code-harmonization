@@ -19,8 +19,13 @@ export function getAuthToken() {
 }
 
 async function request(url, options = {}) {
-  const { timeoutMs = 15000, ...fetchOptions } = options;
+  const { timeoutMs = 30000, ...fetchOptions } = options;
   const controller = new AbortController();
+  const externalAbort = () => controller.abort();
+  if (fetchOptions.signal) {
+    if (fetchOptions.signal.aborted) controller.abort();
+    else fetchOptions.signal.addEventListener("abort", externalAbort, { once: true });
+  }
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   const headers = {
     "Content-Type": "application/json",
@@ -36,7 +41,7 @@ async function request(url, options = {}) {
     res = await fetch(url, {
       ...fetchOptions,
       headers,
-      signal: fetchOptions.signal || controller.signal,
+      signal: controller.signal,
     });
   } catch (error) {
     const isTimeout = error?.name === "AbortError";
@@ -50,6 +55,7 @@ async function request(url, options = {}) {
     throw networkError;
   } finally {
     clearTimeout(timeoutId);
+    fetchOptions.signal?.removeEventListener("abort", externalAbort);
   }
 
   if (res.status === 401) {
@@ -146,15 +152,29 @@ export const api = {
     return request(`${API_BASE}/codes/${encodeURIComponent(code)}/validate`);
   },
 
-  async searchCodes(query = "") {
-    return request(`${API_BASE}/codes/search?q=${encodeURIComponent(query)}`);
+  async searchCodes(query = "", status = "ACTIVE") {
+    let url = `${API_BASE}/codes/search?q=${encodeURIComponent(query)}`;
+    if (status) {
+      url += `&status=${encodeURIComponent(status)}`;
+    }
+    return request(url);
   },
 
   // --- Review queue and governance ---
   async getMappings(status = "PENDING", categoryId = null) {
     let url = `${API_BASE}/mappings?status=${status}`;
     if (categoryId) url += `&categoryId=${categoryId}`;
-    return request(url);
+    const response = await request(url);
+    return Array.isArray(response) ? response : (response?.content || []);
+  },
+
+  async getMappingsPage(status = "PENDING", page = 0, size = 50, categoryId = null) {
+    let url = `${API_BASE}/mappings?status=${status}&page=${page}&size=${size}`;
+    if (categoryId) url += `&categoryId=${categoryId}`;
+    const response = await request(url);
+    return Array.isArray(response)
+      ? { content: response, page: 0, size: response.length, totalElements: response.length, totalPages: 1 }
+      : response;
   },
 
   async getMappingById(mappingId) {
@@ -165,6 +185,13 @@ export const api = {
     return request(`${API_BASE}/mappings/${mappingId}/approve`, {
       method: "POST",
       body: JSON.stringify({ notes }),
+    });
+  },
+
+  async approveAndPublish(mappingId) {
+    return request(`${API_BASE}/mappings/${mappingId}/approve-and-publish`, {
+      method: "POST",
+      timeoutMs: 120000,
     });
   },
 
@@ -235,7 +262,7 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
       body: csvText,
-      timeoutMs: 60000,
+      timeoutMs: 180000,
     });
   },
 
@@ -252,11 +279,11 @@ export const api = {
   },
 
   async harmonizeMaterial(materialId) {
-    return request(`${API_BASE}/harmonization/material/${materialId}`, { method: "POST" });
+    return request(`${API_BASE}/harmonization/material/${materialId}`, { method: "POST", timeoutMs: 120000 });
   },
 
   async harmonizeAll() {
-    return request(`${API_BASE}/harmonization/harmonize-all`, { method: "POST" });
+    return request(`${API_BASE}/harmonization/harmonize-all`, { method: "POST", timeoutMs: 120000 });
   },
 
   // --- Audit trail and verification ---

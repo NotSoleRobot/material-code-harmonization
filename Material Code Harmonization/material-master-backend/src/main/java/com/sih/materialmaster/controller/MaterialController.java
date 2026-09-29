@@ -17,14 +17,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.StringReader;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -72,6 +72,7 @@ public class MaterialController {
     private final HarmonizationService harmonizationService;
     private final HarmonizationJobService jobService;
     private final AuditService auditService;
+    private final TransactionTemplate transactionTemplate;
 
     public MaterialController(MaterialRepository materialRepository,
                               CpseRepository cpseRepository,
@@ -80,7 +81,8 @@ public class MaterialController {
                               UserRepository userRepository,
                               HarmonizationService harmonizationService,
                               HarmonizationJobService jobService,
-                              AuditService auditService) {
+                              AuditService auditService,
+                              TransactionTemplate transactionTemplate) {
         this.materialRepository = materialRepository;
         this.cpseRepository = cpseRepository;
         this.materialCategoryRepository = materialCategoryRepository;
@@ -89,6 +91,7 @@ public class MaterialController {
         this.harmonizationService = harmonizationService;
         this.jobService = jobService;
         this.auditService = auditService;
+        this.transactionTemplate = transactionTemplate;
     }
 
     /**
@@ -138,6 +141,7 @@ public class MaterialController {
         material.setDescription(request.getDescription().trim());
         material.setSpecification(request.getSpecification() != null ? request.getSpecification().trim() : "");
         material.setUnitOfMeasure(request.getUnitOfMeasure() != null ? request.getUnitOfMeasure().trim().toUpperCase() : "NOS");
+        material.setNominalPrice(request.getNominalPrice());
 
         if (request.getCategoryId() != null) {
             MaterialCategory category = materialCategoryRepository.findById(request.getCategoryId())
@@ -196,7 +200,6 @@ public class MaterialController {
      * FR11: Robust CSV bulk ingestion using RFC 4180 Apache Commons CSV (BUG-14, BUG-13).
      */
     @PostMapping(value = "/bulk-csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Transactional
     public ResponseEntity<BulkUploadResponseDto> uploadCsvMultipart(
             @RequestParam("file") MultipartFile file,
             @RequestParam(defaultValue = "true") boolean autoHarmonize,
@@ -209,7 +212,6 @@ public class MaterialController {
     }
 
     @PostMapping(value = "/bulk-csv", consumes = {"text/csv", "text/plain", MediaType.APPLICATION_JSON_VALUE})
-    @Transactional
     public ResponseEntity<BulkUploadResponseDto> uploadCsvText(
             @RequestBody String csvContent,
             @RequestParam(defaultValue = "true") boolean autoHarmonize,
@@ -244,9 +246,8 @@ public class MaterialController {
                 .build();
 
         CSVParser parser = format.parse(reader);
-        List<CSVRecord> records = parser.getRecords();
 
-        int lineNum = records.size();
+        int lineNum = 0;
         int imported = 0;
         int skipped = 0;
         List<String> messages = new ArrayList<>();
@@ -256,9 +257,9 @@ public class MaterialController {
         Long operatorCpseId = (currentUser != null && "OPERATOR".equalsIgnoreCase(currentUser.getRole()))
                 ? currentUser.getCpseId() : null;
 
-        for (int i = 0; i < records.size(); i++) {
-            CSVRecord rec = records.get(i);
-            int rowIdx = i + 2;
+        for (CSVRecord rec : parser) {
+            lineNum++;
+            int rowIdx = lineNum + 1;
 
             String desc = rec.isMapped("description") ? rec.get("description") : (rec.size() > 2 ? rec.get(2) : "");
             if (desc == null || desc.isBlank()) {
@@ -283,15 +284,31 @@ public class MaterialController {
                 continue;
             }
 
+            String priceStr = rec.isMapped("nominal_price") ? rec.get("nominal_price")
+                    : (rec.isMapped("price") ? rec.get("price")
+                    : (rec.isMapped("unit_price") ? rec.get("unit_price")
+                    : (rec.isMapped("rate") ? rec.get("rate")
+                    : (rec.size() > 6 ? rec.get(6) : null))));
+            BigDecimal parsedPrice = null;
+            if (priceStr != null && !priceStr.isBlank()) {
+                try {
+                    parsedPrice = new BigDecimal(priceStr.replaceAll("[^0-9.]", "").trim());
+                } catch (Exception ignored) {}
+            }
+
             // Enforce CPSE Scoping
             Cpse cpse;
             if (operatorCpseId != null) {
                 cpse = cpseRepository.findById(operatorCpseId).orElse(null);
             } else {
                 String finalCpseName = (cpseName != null && !cpseName.isBlank()) ? cpseName.trim() : "GENERAL";
-                cpse = cpseRepository.findByNameIgnoreCase(finalCpseName)
-                        .orElseThrow(() -> new IllegalArgumentException(
-                                "Row " + rowIdx + ": Unknown CPSE '" + finalCpseName + "'"));
+                Optional<Cpse> resolvedCpse = cpseRepository.findByNameIgnoreCase(finalCpseName);
+                if (resolvedCpse.isEmpty()) {
+                    skipped++;
+                    messages.add("Row " + rowIdx + ": Unknown CPSE '" + finalCpseName + "'; row skipped.");
+                    continue;
+                }
+                cpse = resolvedCpse.get();
             }
 
             // The implementation plan defines a closed taxonomy of eight leaf
@@ -315,9 +332,27 @@ public class MaterialController {
             mat.setDescription(desc.trim());
             mat.setSpecification(spec != null ? spec.trim() : "");
             mat.setUnitOfMeasure(uom != null ? uom.trim().toUpperCase() : "NOS");
+            if (parsedPrice != null) {
+                mat.setNominalPrice(parsedPrice);
+            }
             mat.setCategory(category);
 
-            Material saved = materialRepository.save(mat);
+            // Each row commits independently. This bounds transaction size, allows
+            // the streaming parser to handle large files, and preserves valid rows
+            // when a later row is rejected.
+            Material saved;
+            try {
+                saved = transactionTemplate.execute(status -> materialRepository.saveAndFlush(mat));
+            } catch (org.springframework.dao.DataAccessException ex) {
+                skipped++;
+                messages.add("Row " + rowIdx + ": Database validation failed; row skipped.");
+                continue;
+            }
+            if (saved == null) {
+                skipped++;
+                messages.add("Row " + rowIdx + ": Database write failed; row skipped.");
+                continue;
+            }
             newlyCreatedIds.add(saved.getMaterialId());
             imported++;
         }
@@ -327,7 +362,7 @@ public class MaterialController {
         if (autoHarmonize && !newlyCreatedIds.isEmpty()) {
             HarmonizationJob job = jobService.createJob(user, newlyCreatedIds.size());
             jobId = job.getJobId();
-            dispatchAfterCommit(job.getJobId(), newlyCreatedIds);
+            jobService.processAsync(job.getJobId(), List.copyOf(newlyCreatedIds));
             messages.add("Created async harmonization job #" + job.getJobId() + " for " + newlyCreatedIds.size() + " materials.");
         }
 
@@ -335,19 +370,6 @@ public class MaterialController {
         auditService.logEvent(user, "BULK_INGEST", "MATERIAL", 0L, null, "Imported " + imported + " rows from CSV (" + skipped + " skipped)");
 
         return new BulkUploadResponseDto(lineNum, imported, skipped, messages, jobId);
-    }
-
-    private void dispatchAfterCommit(Long jobId, List<Long> materialIds) {
-        List<Long> committedIds = List.copyOf(materialIds);
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            throw new IllegalStateException("Bulk harmonization must be dispatched from an active transaction");
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                jobService.processAsync(jobId, committedIds);
-            }
-        });
     }
 
     private Optional<MaterialCategory> resolveCategory(String categoryLabel) {
@@ -375,6 +397,7 @@ public class MaterialController {
                 material.getDescription(),
                 material.getSpecification(),
                 material.getUnitOfMeasure(),
+                material.getNominalPrice(),
                 material.getCategory() != null ? material.getCategory().getCategoryId() : null,
                 material.getCreatedAt()
         );

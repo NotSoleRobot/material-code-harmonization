@@ -111,6 +111,20 @@ export function ReviewDetailView() {
     }
   };
 
+  const handleFastTrack = async () => {
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      const result = await api.approveAndPublish(id);
+      setActionSuccess(`Published successfully as ${result.code}.`);
+      await loadMapping();
+    } catch (err) {
+      setActionError(err.message || "Fast-track publication failed.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ padding: "1.5rem" }}>
@@ -133,7 +147,7 @@ export function ReviewDetailView() {
   // Conflict of Interest check: ordinary reviewers cannot decide their own CPSE's materials.
   const isOwnCpse = user?.cpse?.name && mapping.cpseName
     && user.cpse.name.toUpperCase() === mapping.cpseName.toUpperCase();
-  const canApprove = hasRole(["REVIEWER", "SENIOR_REVIEWER"])
+  const canApprove = hasRole(["REVIEWER", "SENIOR_REVIEWER", "ADMIN"])
     && (!isOwnCpse || hasRole("SENIOR_REVIEWER"));
 
   // Parse explanation JSON
@@ -364,6 +378,14 @@ export function ReviewDetailView() {
               </button>
             </>
           )}
+          {hasRole(["SENIOR_REVIEWER", "ADMIN"])
+            && (mapping.status === "CONFIRMED" || (mapping.status === "PENDING" && hasRole("ADMIN")))
+            && mapping.confidenceTier === "HIGH"
+            && Number(mapping.confidenceScore || 0) >= 0.85 && (
+            <button className="btn btn-primary btn-sm" onClick={handleFastTrack} disabled={actionLoading}>
+              <CheckCircle2 size={14} /> Approve &amp; Publish
+            </button>
+          )}
         </div>
       </div>
 
@@ -376,7 +398,7 @@ export function ReviewDetailView() {
             </div>
             <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
               <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>
-                Approving this mapping confirms the material-to-group relationship. A senior reviewer can then publish the group and mint its authoritative <strong>NUMM-SS-FF-CC-NNNNNN-K</strong> code with an ISO 7064 MOD 37,36 check character.
+                Approving this mapping confirms the material-to-group relationship. A separate authorized reviewer can then publish its authoritative <strong>NUMM-CCCCCC-MM-DDD-RRR-NNNNNN-K</strong> code with an ISO 7064 MOD 37,36 check character.
               </p>
               <div>
                 <label className="form-label" style={{ fontSize: "0.75rem" }}>Statutory Governance Notes *</label>

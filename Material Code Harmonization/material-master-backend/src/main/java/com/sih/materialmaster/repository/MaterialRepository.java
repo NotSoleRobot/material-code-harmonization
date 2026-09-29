@@ -29,10 +29,22 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
 
     Optional<Material> findByCpse_CpseIdAndCpseMaterialCode(Long cpseId, String cpseMaterialCode);
 
-    @Query("SELECT m FROM Material m WHERE m.materialId != :excludeId AND m.category.categoryId = :categoryId ORDER BY m.materialId ASC")
-    List<Material> findCandidatesByCategory(@Param("categoryId") Long categoryId, @Param("excludeId") Long excludeId, Pageable pageable);
+    @Query(value = "SELECT m.* FROM material m WHERE m.material_id <> :excludeId " +
+            "AND m.category_id = :categoryId " +
+            "AND (lower(m.description) % lower(:description) " +
+            " OR (:dimension IS NOT NULL AND lower(COALESCE(m.extracted_dimension,'')) = lower(:dimension)) " +
+            " OR (:materialType IS NOT NULL AND lower(COALESCE(m.extracted_material_type,'')) = lower(:materialType))) " +
+            "ORDER BY (CASE WHEN :dimension IS NOT NULL AND lower(COALESCE(m.extracted_dimension,'')) = lower(:dimension) THEN 0.35 ELSE 0 END " +
+            "+ CASE WHEN :materialType IS NOT NULL AND lower(COALESCE(m.extracted_material_type,'')) = lower(:materialType) THEN 0.20 ELSE 0 END " +
+            "+ similarity(lower(m.description), lower(:description))) DESC, m.material_id DESC LIMIT 50",
+            nativeQuery = true)
+    List<Material> findRelevantCandidates(@Param("categoryId") Long categoryId,
+                                           @Param("excludeId") Long excludeId,
+                                           @Param("description") String description,
+                                           @Param("dimension") String dimension,
+                                           @Param("materialType") String materialType);
 
-    @Query("SELECT m FROM Material m WHERE m.materialId != :excludeId ORDER BY m.materialId ASC")
+    @Query("SELECT m FROM Material m WHERE m.materialId != :excludeId ORDER BY m.materialId DESC")
     List<Material> findCandidatesAll(@Param("excludeId") Long excludeId, Pageable pageable);
 
     @Query(

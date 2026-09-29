@@ -5,14 +5,12 @@ import com.sih.materialmaster.dto.CategorySchemaDto;
 import com.sih.materialmaster.dto.CompareResponse;
 import com.sih.materialmaster.dto.FindMatchesBatchQuery;
 import com.sih.materialmaster.dto.FindMatchesResponse;
-import com.sih.materialmaster.dto.GenerateCodeResponse;
 import com.sih.materialmaster.dto.MaterialInfoDto;
 import com.sih.materialmaster.exception.MatchingServiceException;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Non-ML profile implementation required for a complete Spring bean graph.
@@ -44,11 +42,6 @@ public class StubMatchingClient implements MatchingClient {
 
     @Override
     public List<FindMatchesResponse> findMatchesBatch(List<FindMatchesBatchQuery> queries) {
-        throw unavailable();
-    }
-
-    @Override
-    public GenerateCodeResponse generateCode(String category, Map<String, Object> attributes) {
         throw unavailable();
     }
 

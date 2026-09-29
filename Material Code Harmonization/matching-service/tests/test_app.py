@@ -180,23 +180,5 @@ class TestMatchingServiceApp(unittest.TestCase):
         self.assertIn("matches", data)
         self.assertGreater(len(data["matches"]), 0)
 
-    def test_generate_code(self):
-        payload = {
-            "category": "PIPE",
-            "attrs": {
-                "material": "CS",
-                "grade": "GrB",
-                "nominal_size_mm": 50
-            }
-        }
-        response = self.app.post("/generate-code",
-                                 data=json.dumps(payload),
-                                 content_type="application/json")
-        self.assertEqual(response.status_code, 200)
-        data = response.get_json()
-        self.assertIn("proposed_code", data)
-        self.assertTrue(data["proposed_code"].startswith("PIPE-"))
-
-
 if __name__ == "__main__":
     unittest.main()

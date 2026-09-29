@@ -37,12 +37,12 @@ public class GroupController {
     public ResponseEntity<List<PublishableGroupDto>> getPublishableGroups() {
         List<MaterialGroup> groups = governance.getPublishableGroups();
         List<PublishableGroupDto> dtos = new ArrayList<>();
+        Map<Long, List<MaterialMapping>> confirmedByGroup = groups.isEmpty() ? Map.of() :
+                mappingRepository.findConfirmedForGroups(groups.stream().map(MaterialGroup::getGroupId).toList())
+                        .stream().collect(java.util.stream.Collectors.groupingBy(m -> m.getGroup().getGroupId()));
 
         for (MaterialGroup g : groups) {
-            List<MaterialMapping> mappings = mappingRepository.findByGroup_GroupId(g.getGroupId());
-            List<MaterialMapping> confirmed = mappings.stream()
-                    .filter(m -> "CONFIRMED".equals(m.getStatus()))
-                    .toList();
+            List<MaterialMapping> confirmed = confirmedByGroup.getOrDefault(g.getGroupId(), List.of());
 
             Set<String> cpseSet = new HashSet<>();
             List<PublishableGroupDto.MemberMaterialDto> memberDtos = new ArrayList<>();

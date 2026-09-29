@@ -3,7 +3,6 @@ package com.sih.materialmaster.service;
 import com.sih.materialmaster.dto.*;
 
 import java.util.List;
-import java.util.Map;
 
 public interface MatchingClient {
     /**
@@ -25,11 +24,6 @@ public interface MatchingClient {
 
     /** Batch candidate scoring used by ingestion jobs to avoid one HTTP call per row. */
     List<FindMatchesResponse> findMatchesBatch(List<FindMatchesBatchQuery> queries);
-
-    /**
-     * Deterministic national material code proposal based on category and extracted attributes.
-     */
-    GenerateCodeResponse generateCode(String category, Map<String, Object> attributes);
 
     /**
      * WP1: Batch attribute extraction. Sends materials to Flask /extract-attributes and

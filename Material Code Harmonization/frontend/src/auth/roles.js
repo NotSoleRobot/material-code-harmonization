@@ -7,7 +7,7 @@ export const NAV = [
   { to: "/my-materials", key: "nav.myMaterials", roles: ["OPERATOR"], label: "My CPSE Materials", icon: "Boxes" },
   { to: "/ingest", key: "nav.ingest", roles: ["OPERATOR", "ADMIN"], label: "CSV Catalog Ingestion", icon: "UploadCloud" },
   { to: "/review", key: "nav.review", roles: ["REVIEWER", "SENIOR_REVIEWER", "ADMIN"], label: "Review & Adjudication", icon: "ClipboardCheck" },
-  { to: "/publish", key: "nav.publish", roles: ["SENIOR_REVIEWER"], label: "Publication & Minting", icon: "Award" },
+  { to: "/publish", key: "nav.publish", roles: ["SENIOR_REVIEWER", "ADMIN"], label: "Publication & Minting", icon: "Award" },
   { to: "/catalog", key: "nav.catalog", roles: ["OPERATOR", "REVIEWER", "SENIOR_REVIEWER", "ADMIN"], label: "Unified National Catalog", icon: "BookOpen" },
   { to: "/compare", key: "nav.compare", roles: ["OPERATOR", "REVIEWER", "SENIOR_REVIEWER", "ADMIN"], label: "Pairwise AI Sandbox", icon: "GitCompare" },
   { to: "/audit", key: "nav.audit", roles: ["SENIOR_REVIEWER", "ADMIN"], label: "Cryptographic Audit Trail", icon: "ShieldCheck" },

@@ -88,6 +88,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/mappings/audit/**", "/api/mappings/audit").hasAnyRole("SENIOR_REVIEWER", "ADMIN")
                         // 8. Supersede mapping decisions
                         .requestMatchers(HttpMethod.POST, "/api/mappings/*/supersede").hasAnyRole("SENIOR_REVIEWER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/mappings/*/approve-and-publish").hasAnyRole("SENIOR_REVIEWER", "ADMIN")
                         // 9. Bulk approve high-confidence mappings
                         .requestMatchers(HttpMethod.POST, "/api/mappings/bulk-approve").hasAnyRole("REVIEWER", "SENIOR_REVIEWER")
                         // 10. Individual mapping review decisions
@@ -97,7 +98,7 @@ public class SecurityConfig {
                         // 12. Publishable groups queue
                         .requestMatchers(HttpMethod.GET, "/api/groups/publishable").hasAnyRole("SENIOR_REVIEWER", "ADMIN")
                         // 13. Mint official National Code
-                        .requestMatchers(HttpMethod.POST, "/api/groups/*/mint").hasRole("SENIOR_REVIEWER")
+                        .requestMatchers(HttpMethod.POST, "/api/groups/*/mint").hasAnyRole("SENIOR_REVIEWER", "ADMIN")
                         // 14. National Code lookup & validation (all authenticated users)
                         .requestMatchers(HttpMethod.GET, "/api/codes/**").authenticated()
                         // 15. Pairwise ML Sandbox comparison (all authenticated users)

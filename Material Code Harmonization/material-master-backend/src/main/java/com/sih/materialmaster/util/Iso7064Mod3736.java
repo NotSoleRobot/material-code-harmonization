@@ -25,7 +25,7 @@ public final class Iso7064Mod3736 {
      * Pattern: {@code NUMM-DD-DD-DD-DDDDDD-C} where D is a digit and C is a base-36 char.
      */
     private static final Pattern CANONICAL =
-            Pattern.compile("^NUMM-\\d{2}-\\d{2}-\\d{2}-\\d{6}-[0-9A-Z]$");
+            Pattern.compile("^(NUMM-\\d{2}-\\d{2}-\\d{2}-\\d{6}-[0-9A-Z]|NUMM-[0-9A-Z]{4,8}(-[0-9A-Z]{2,6})+\\-\\d{6}-[0-9A-Z])$");
 
     private Iso7064Mod3736() {}
 

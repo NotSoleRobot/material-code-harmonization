@@ -44,7 +44,7 @@ public class AuditService {
     /**
      * Appends an auditable event with serialized head-locking and cryptographic chaining.
      */
-    @Transactional(propagation = Propagation.REQUIRED)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public AuditTrail logEvent(User user, String action, String entityType, Long entityId, String oldValue, String newValue) {
         validateEntityType(entityType);
 

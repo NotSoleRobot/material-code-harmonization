@@ -22,6 +22,7 @@ export function DashboardView() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [actionMessage, setActionMessage] = useState(null);
+  const [activeJobId, setActiveJobId] = useState(null);
 
   const {
     data: stats,
@@ -51,14 +52,16 @@ export function DashboardView() {
   const batchHarmonizeMutation = useMutation({
     mutationFn: api.harmonizeAll,
     onSuccess: (data) => {
+      // Backend returns 202 Accepted with { jobId, status, totalItems, message }
+      const totalItems = data?.totalItems ?? 0;
+      const jobId = data?.jobId;
+      setActiveJobId(jobId || null);
       setActionMessage({
         type: "success",
-        text: `Batch harmonization run completed. ${data?.length || 0} candidate mappings processed.`,
+        text: jobId
+          ? `Harmonization job #${jobId} started — ${totalItems} unmatched material(s) queued for processing.`
+          : `Batch harmonization triggered. ${totalItems} item(s) queued.`,
       });
-      queryClient.invalidateQueries(["dashboardStats"]);
-      queryClient.invalidateQueries(["mappings"]);
-      queryClient.invalidateQueries(["rateContractCandidates"]);
-      setTimeout(() => setActionMessage(null), 5000);
     },
     onError: (err) => {
       setActionMessage({
@@ -67,6 +70,35 @@ export function DashboardView() {
       });
     },
   });
+
+  const { data: activeJob } = useQuery({
+    queryKey: ["harmonizationJob", activeJobId],
+    queryFn: () => api.getJobStatus(activeJobId),
+    enabled: Boolean(activeJobId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "COMPLETED" || status === "FAILED" ? false : 1500;
+    },
+  });
+
+  const jobStatus = activeJob?.status;
+  const processedItems = activeJob?.processedItems;
+  const totalItems = activeJob?.totalItems;
+  const errorMessage = activeJob?.errorMessage;
+
+  React.useEffect(() => {
+    if (!jobStatus || !["COMPLETED", "FAILED"].includes(jobStatus)) return;
+    setActionMessage({
+      type: jobStatus === "COMPLETED" ? "success" : "error",
+      text: jobStatus === "COMPLETED"
+        ? `Harmonization completed: ${processedItems}/${totalItems} materials processed.`
+        : `Harmonization failed after ${processedItems}/${totalItems}: ${errorMessage || "See job details."}`,
+    });
+    queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+    queryClient.invalidateQueries({ queryKey: ["mappings"] });
+    queryClient.invalidateQueries({ queryKey: ["rateContractCandidates"] });
+    setActiveJobId(null);
+  }, [jobStatus, processedItems, totalItems, errorMessage, queryClient]);
 
   if (statsLoading) {
     return (
@@ -109,6 +141,15 @@ export function DashboardView() {
         <div className={`alert-banner alert-${actionMessage.type === "success" ? "success" : "danger"} mb-4`} role="status">
           {actionMessage.type === "success" ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
           <span>{actionMessage.text}</span>
+        </div>
+      )}
+      {activeJobId && activeJob && (
+        <div className="card mb-4" style={{ padding: "1rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+            <strong>Harmonization job #{activeJobId}</strong>
+            <span>{activeJob.processedItems || 0} / {activeJob.totalItems || 0}</span>
+          </div>
+          <progress style={{ width: "100%" }} value={activeJob.processedItems || 0} max={Math.max(activeJob.totalItems || 1, 1)} />
         </div>
       )}
 

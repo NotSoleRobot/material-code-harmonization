@@ -18,5 +18,7 @@ public class AuditTrailDto {
     private Long entityId;
     private String oldValue;
     private String newValue;
+    private String prevHash;
+    private String rowHash;
     private LocalDateTime timestamp;
 }

@@ -120,7 +120,7 @@ class GovernanceServiceTest {
 
         when(groupRepository.findLockedById(100L)).thenReturn(Optional.of(group));
         when(mappingRepository.findByGroup_GroupId(100L)).thenReturn(java.util.List.of(approved));
-        when(codeGenerator.mintNationalCode(any())).thenReturn("NUMM-40-14-16-000100-K");
+        when(codeGenerator.mintNationalCode(any(), any(), any())).thenReturn("NUMM-40-14-16-000100-K");
         when(groupRepository.save(any(MaterialGroup.class))).thenAnswer(inv -> inv.getArgument(0));
 
         String code = governanceService.mintGroup(100L, seniorReviewer);
@@ -169,5 +169,32 @@ class GovernanceServiceTest {
                 eq("status: PENDING"),
                 anyString()
         );
+    }
+
+    @Test
+    @DisplayName("Supersede preserves the original decision and links a replacement mapping")
+    void testSupersedeMapping_PreservesLineage() {
+        mapping.setStatus("CONFIRMED");
+        User admin = new User();
+        admin.setUserId(77L);
+        admin.setRole("ADMIN");
+
+        when(mappingRepository.findById(500L)).thenReturn(Optional.of(mapping));
+        when(mappingRepository.saveAndFlush(any(MaterialMapping.class))).thenAnswer(invocation -> {
+            MaterialMapping saved = invocation.getArgument(0);
+            if (saved.getMappingId() == null) saved.setMappingId(501L);
+            return saved;
+        });
+        when(mappingRepository.save(any(MaterialMapping.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        MaterialMapping replacement = governanceService.supersedeMapping(
+                500L, admin, "REJECTED", "Engineering specification was revalidated");
+
+        assertEquals("SUPERSEDED", mapping.getStatus());
+        assertEquals("REJECTED", replacement.getStatus());
+        assertSame(mapping, replacement.getSupersedesMapping());
+        assertSame(replacement, mapping.getSupersededByMapping());
+        verify(auditService).logEvent(eq(admin), eq("MAPPING_SUPERSEDED"),
+                eq("MATERIAL_MAPPING"), eq(500L), anyString(), contains("replacementMappingId: 501"));
     }
 }
