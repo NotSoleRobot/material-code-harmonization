@@ -46,7 +46,7 @@ In the Render dashboard, choose **New > Blueprint**, connect the repository, and
 the root-level `render.yaml`. It creates:
 
 - `numm-frontend`: React static site
-- `numm-backend`: Spring Boot API
+- `numm-spring-api`: Spring Boot API
 - `numm-matching`: Python matching service
 
 Render prompts for every variable marked `sync: false`. In addition to the database
@@ -54,7 +54,7 @@ values, provide:
 
 | Variable | Required value |
 |---|---|
-| Frontend `VITE_API_BASE_URL` | Public backend origin, for example `https://numm-backend.onrender.com` |
+| Frontend `VITE_API_BASE_URL` | Public backend origin, for example `https://numm-spring-api.onrender.com` |
 | Backend `MATCHING_SERVICE_URL` | Public matching-service origin, for example `https://numm-matching.onrender.com` |
 | Backend `CORS_ALLOWED_ORIGINS` | Exact frontend origin, for example `https://numm-frontend.onrender.com` |
 | Backend `BOOTSTRAP_ADMIN_PASSWORD` | A new, private password with at least 14 characters |
