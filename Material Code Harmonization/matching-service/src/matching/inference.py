@@ -65,6 +65,49 @@ def _confidence_tier(match_proba: float) -> str:
     return "LOW"
 
 
+def _open_domain_comparison(cat_a, cat_b, desc_a, spec_a, desc_b, spec_b, artifacts) -> dict:
+    """Text-weighted fallback for categories without a trained attribute schema."""
+    from features.feature_engineering import text_similarity_features
+
+    text_features = text_similarity_features(
+        desc_a, spec_a, desc_b, spec_b, artifacts["word_vec"], artifacts["char_vec"])
+    score = (
+        0.40 * text_features.get("tfidf_word_cosine", 0.0)
+        + 0.25 * text_features.get("tfidf_char_cosine", 0.0)
+        + 0.20 * text_features.get("fuzz_token_sort", 0.0)
+        + 0.15 * text_features.get("fuzz_ratio", 0.0)
+    )
+    if cat_a != cat_b:
+        score *= 0.65
+    if score >= 0.90:
+        label = "EXACT_DUPLICATE"
+    elif score >= 0.75:
+        label = "NEAR_DUPLICATE"
+    elif score >= 0.60:
+        label = "FUNCTIONALLY_EQUIVALENT"
+    elif score >= 0.35:
+        label = "NEEDS_REVIEW"
+    else:
+        label = "NOT_A_MATCH"
+    attrs_a = extract_attributes(desc_a, spec_a, cat_a)
+    attrs_b = extract_attributes(desc_b, spec_b, cat_b)
+    shared = [key for key in attrs_a if attrs_a.get(key) and attrs_a.get(key) == attrs_b.get(key)]
+    return {
+        "predicted_relationship": label,
+        "label_probability": round(score, 4),
+        "match_probability": round(score, 4),
+        "confidence": round(score, 4),
+        "confidence_tier": _confidence_tier(score),
+        "class_probabilities": {label: round(score, 4)},
+        "explanation": {
+            "checks": [f"Same {key.replace('_', ' ')}: {attrs_a[key]}" for key in shared],
+            "warnings": ["Open-domain weighted text comparison used"],
+            "conflicts": [] if cat_a == cat_b else [f"Different material family: {cat_a} vs {cat_b}"],
+        },
+        "features": text_features,
+    }
+
+
 def _explain(cat_a, cat_b, desc_a, spec_a, desc_b, spec_b, predicted_label) -> dict:
     """Attribute-level explanation, not a bare score."""
     checks, warnings, conflicts = [], [], []
@@ -119,6 +162,9 @@ def compare_materials(record_a: dict, record_b: dict) -> dict:
                 "explanation": {"checks": [], "warnings": ["One or both descriptions are empty"], "conflicts": []},
                 "note": "Cannot compare: missing description text.",
             }
+
+        if cat_a not in CATEGORIES or cat_b not in CATEGORIES:
+            return _open_domain_comparison(cat_a, cat_b, desc_a, spec_a, desc_b, spec_b, artifacts)
 
         f = compute_pair_features(cat_a, cat_b, desc_a, spec_a, desc_b, spec_b,
                                     artifacts["word_vec"], artifacts["char_vec"])

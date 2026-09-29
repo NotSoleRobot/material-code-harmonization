@@ -41,4 +41,7 @@ public class MaterialCategory {
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "is_custom", nullable = false)
+    private Boolean custom = false;
 }

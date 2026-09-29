@@ -156,12 +156,24 @@ export const api = {
     return request(`${API_BASE}/codes/${encodeURIComponent(code)}/validate`);
   },
 
-  async searchCodes(query = "", status = "ACTIVE") {
-    let url = `${API_BASE}/codes/search?q=${encodeURIComponent(query)}`;
+  async searchCodes(query = "", status = "ACTIVE", page = 0, size = 20) {
+    let url = `${API_BASE}/codes/search?q=${encodeURIComponent(query)}&page=${page}&size=${size}`;
     if (status) {
       url += `&status=${encodeURIComponent(status)}`;
     }
-    return request(url);
+    const response = await request(url);
+    if (Array.isArray(response)) {
+      return {
+        content: response,
+        number: 0,
+        size: response.length,
+        totalElements: response.length,
+        totalPages: response.length > 0 ? 1 : 0,
+        first: true,
+        last: true,
+      };
+    }
+    return response;
   },
 
   // --- Review queue and governance ---

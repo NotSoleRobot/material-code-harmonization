@@ -101,6 +101,37 @@ class TestMatchingServiceApp(unittest.TestCase):
         self.assertTrue(result["identity_critical_present"])
         self.assertEqual(result["missing_identity_keys"], [])
 
+    def test_open_domain_schema_and_attribute_extraction(self):
+        schema_response = self.app.get("/schema/INSTRUMENTATION")
+        self.assertEqual(schema_response.status_code, 200)
+        schema = schema_response.get_json()
+        self.assertEqual(schema["identity_critical"], ["material"])
+        self.assertIn("model", schema["all_fields"])
+
+        extraction = self.app.post("/extract-attributes", json={"materials": [{
+            "material_id": 77,
+            "description": "SS316 PRESSURE TRANSMITTER PTX-500 50MM",
+            "specification": "IEC 61508",
+            "category": "INSTRUMENTATION",
+        }]})
+        self.assertEqual(extraction.status_code, 200)
+        attributes = extraction.get_json()["results"][0]["attributes"]
+        self.assertEqual(attributes["material"], "SS316")
+        self.assertEqual(attributes["nominal_size_mm"], 50.0)
+        self.assertEqual(attributes["model"], "PTX-500")
+        self.assertEqual(attributes["standard"], "IEC61508")
+
+    def test_open_domain_comparison_uses_text_fallback(self):
+        response = self.app.post("/compare", json={
+            "material_a": {"description": "SS316 PRESSURE TRANSMITTER PTX-500 50MM", "category": "INSTRUMENTATION"},
+            "material_b": {"description": "PRESSURE TRANSMITTER PTX-500 SS316 50 MM", "category": "INSTRUMENTATION"},
+        })
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertIn(result["predicted_relationship"], {
+            "EXACT_DUPLICATE", "NEAR_DUPLICATE", "FUNCTIONALLY_EQUIVALENT", "NEEDS_REVIEW"})
+        self.assertIn("Open-domain weighted text comparison used", result["explanation"]["warnings"])
+
     def test_near_miss_different_size_is_not_a_duplicate(self):
         response = self.app.post("/compare", json={
             "material_a": {"description": "CS SEAMLESS PIPE 50MM SCH40 ASTM A106 GRB", "category": "PIPE"},

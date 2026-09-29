@@ -15,11 +15,24 @@ import java.util.concurrent.Executor;
 @EnableAsync
 public class AsyncConfig {
 
-    @Bean(name = "harmonizationTaskExecutor", destroyMethod = "shutdown")
-    public ThreadPoolTaskExecutor harmonizationTaskExecutor() {
+    @Bean(name = "taskExecutor", destroyMethod = "shutdown")
+    public ThreadPoolTaskExecutor ingestionTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(2);
         executor.setMaxPoolSize(2);
+        executor.setQueueCapacity(25);
+        executor.setThreadNamePrefix("CsvIngest-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
+        executor.initialize();
+        return executor;
+    }
+
+    @Bean(name = "harmonizationTaskExecutor", destroyMethod = "shutdown")
+    public ThreadPoolTaskExecutor harmonizationTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(4);
+        executor.setMaxPoolSize(4);
         executor.setQueueCapacity(100);
         executor.setThreadNamePrefix("HarmonizeAsync-");
         executor.setWaitForTasksToCompleteOnShutdown(true);

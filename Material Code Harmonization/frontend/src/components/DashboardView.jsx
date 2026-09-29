@@ -88,6 +88,8 @@ export function DashboardView() {
 
   React.useEffect(() => {
     if (!jobStatus || !["COMPLETED", "FAILED"].includes(jobStatus)) return;
+    // Polling is external state; reflect the terminal transition in the action banner.
+    // oxlint-disable-next-line react/set-state-in-effect
     setActionMessage({
       type: jobStatus === "COMPLETED" ? "success" : "error",
       text: jobStatus === "COMPLETED"
@@ -204,8 +206,46 @@ export function DashboardView() {
           <div className="kpi-content">
             <span className="kpi-label">{t("dashboard.estimatedSavings")}</span>
             <span className="kpi-value">₹ {stats?.estimatedSavingsInrLakhs?.toLocaleString() ?? 0} L</span>
-            <span className="kpi-sub text-muted">Model-based holding cost ROI</span>
+            <span className="kpi-sub text-muted">Observed prices plus disclosed assumptions</span>
           </div>
+        </div>
+      </div>
+
+      <div className="card mb-4" aria-label="Savings calculation breakdown">
+        <div className="card-header">
+          <div>
+            <h2 className="card-title">Procurement savings breakdown</h2>
+            <p className="card-subtitle">All figures are shown in lakhs INR and remain separate for audit review.</p>
+          </div>
+        </div>
+        <div className="table-responsive">
+          <table className="data-table">
+            <caption>Dynamic procurement savings calculation</caption>
+            <thead>
+              <tr>
+                <th scope="col">Line item</th>
+                <th scope="col">Calculation basis</th>
+                <th scope="col" className="text-right">Lakhs INR</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr title="For each active multi-enterprise group: highest recorded price minus lowest recorded price; annual volume defaults to one.">
+                <td>Direct price arbitrage</td>
+                <td>Observed inter-enterprise price spread × volume 1</td>
+                <td className="text-right font-semibold">₹ {stats?.savingsBreakdown?.directPriceArbitrageLakhs?.toLocaleString() ?? 0}</td>
+              </tr>
+              <tr title="Median recorded nominal value of redundant items multiplied by the configurable annual carrying-cost rate.">
+                <td>Inventory holding avoidance</td>
+                <td>{stats?.savingsBreakdown?.pricedDuplicateItems ?? 0} priced duplicates × median value × {stats?.savingsBreakdown?.inventoryCarryingRatePct ?? 20}%</td>
+                <td className="text-right font-semibold">₹ {stats?.savingsBreakdown?.inventoryHoldingAvoidanceLakhs?.toLocaleString() ?? 0}</td>
+              </tr>
+              <tr title="Configurable master-data cleanup and procurement-administration assumptions multiplied by confirmed duplicates eliminated.">
+                <td>Admin and data cleanup avoidance</td>
+                <td>Disclosed assumptions × confirmed duplicates eliminated</td>
+                <td className="text-right font-semibold">₹ {stats?.savingsBreakdown?.adminDataCleanupAvoidanceLakhs?.toLocaleString() ?? 0}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 

@@ -78,6 +78,24 @@ public interface MaterialMappingRepository extends JpaRepository<MaterialMapping
             "GROUP BY g.group_id HAVING COUNT(*) > 1) x", nativeQuery = true)
     long countConfirmedDuplicatesEliminated();
 
+    @Query(value = "SELECT COALESCE(SUM(x.price_spread), 0) FROM (" +
+            "SELECT MAX(m.nominal_price) - MIN(m.nominal_price) AS price_spread " +
+            "FROM material_mapping mm JOIN material_group g ON g.group_id = mm.group_id " +
+            "JOIN material m ON m.material_id = mm.material_id " +
+            "WHERE g.status = 'ACTIVE' AND mm.status = 'CONFIRMED' AND m.nominal_price IS NOT NULL " +
+            "GROUP BY g.group_id HAVING COUNT(DISTINCT m.cpse_id) >= 2) x", nativeQuery = true)
+    java.math.BigDecimal sumActiveGroupPriceArbitrage();
+
+    @Query(value = "SELECT ranked.nominal_price FROM (" +
+            "SELECT m.nominal_price, ROW_NUMBER() OVER (PARTITION BY mm.group_id ORDER BY m.material_id) AS member_rank " +
+            "FROM material_mapping mm JOIN material_group g ON g.group_id = mm.group_id " +
+            "JOIN material m ON m.material_id = mm.material_id " +
+            "WHERE g.status = 'ACTIVE' AND mm.status = 'CONFIRMED' AND m.nominal_price IS NOT NULL " +
+            "AND mm.group_id IN (SELECT group_id FROM material_mapping WHERE status = 'CONFIRMED' " +
+            "GROUP BY group_id HAVING COUNT(*) > 1)) ranked " +
+            "WHERE ranked.member_rank > 1 ORDER BY ranked.nominal_price", nativeQuery = true)
+    List<java.math.BigDecimal> findRedundantItemNominalPrices();
+
     @Query(value = "SELECT g.group_id AS \"groupId\", COALESCE(g.common_material_code, g.provisional_ref) AS \"nationalMaterialCode\", " +
             "g.standardized_description AS \"standardizedDescription\", COALESCE(mc.name, 'GENERAL') AS category, " +
             "COUNT(DISTINCT c.cpse_id) AS \"distinctCpseCount\", COUNT(*) AS \"totalMemberCount\", " +

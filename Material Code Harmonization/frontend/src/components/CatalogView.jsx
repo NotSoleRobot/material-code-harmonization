@@ -26,6 +26,9 @@ export function CatalogView() {
   const selectedCategory = searchParams.get("category") || "ALL";
   const viewMode = searchParams.get("view") || "canonical"; // 'canonical' or 'crossref'
   const selectedStatus = searchParams.get("status") || "ACTIVE";
+  const page = Math.max(0, Number.parseInt(searchParams.get("page") || "0", 10) || 0);
+  const pageSize = [20, 50, 100].includes(Number(searchParams.get("size")))
+    ? Number(searchParams.get("size")) : 20;
 
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFormat, setExportFormat] = useState("csv");
@@ -41,8 +44,9 @@ export function CatalogView() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["codesSearch", query, selectedStatus],
-    queryFn: () => api.searchCodes(query, selectedStatus),
+    queryKey: ["codesSearch", query, selectedStatus, page, pageSize],
+    queryFn: () => api.searchCodes(query, selectedStatus, page, pageSize),
+    placeholderData: (previousData) => previousData,
   });
 
   const handleSearchChange = (e) => {
@@ -53,6 +57,7 @@ export function CatalogView() {
     } else {
       newParams.delete("q");
     }
+    newParams.delete("page");
     setSearchParams(newParams);
   };
 
@@ -63,6 +68,7 @@ export function CatalogView() {
     } else {
       newParams.set("category", cat);
     }
+    newParams.delete("page");
     setSearchParams(newParams);
   };
 
@@ -79,11 +85,27 @@ export function CatalogView() {
     } else {
       newParams.set("status", status);
     }
+    newParams.delete("page");
+    setSearchParams(newParams);
+  };
+
+  const handlePageChange = (nextPage) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (nextPage <= 0) newParams.delete("page");
+    else newParams.set("page", String(nextPage));
+    setSearchParams(newParams);
+  };
+
+  const handlePageSizeChange = (nextSize) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("size", String(nextSize));
+    newParams.delete("page");
     setSearchParams(newParams);
   };
 
   // Filter results client-side for category if selected
-  const filteredResults = searchResults?.filter((g) => {
+  const pageResults = searchResults?.content || [];
+  const filteredResults = pageResults.filter((g) => {
     if (selectedCategory === "ALL") return true;
     return g.categoryName?.toUpperCase() === selectedCategory.toUpperCase();
   }) || [];
@@ -309,6 +331,39 @@ export function CatalogView() {
                 )}
               </tbody>
             </Table>
+        </div>
+      )}
+
+      {!isLoading && !error && (searchResults?.totalPages || 0) > 0 && (
+        <div className="card mt-3 p-3" aria-label="Catalog pagination">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+            <span className="text-sm text-muted">
+              Page {(searchResults?.number ?? page) + 1} of {searchResults?.totalPages ?? 1}
+              {Number.isFinite(searchResults?.totalElements) ? ` · ${searchResults.totalElements} records` : ""}
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <label htmlFor="catalog-page-size" className="text-sm text-muted">Rows</label>
+              <select
+                id="catalog-page-size"
+                className="form-select"
+                value={pageSize}
+                onChange={(event) => handlePageSizeChange(Number(event.target.value))}
+                style={{ width: "84px" }}
+              >
+                {[20, 50, 100].map((option) => <option key={option} value={option}>{option}</option>)}
+              </select>
+              <button className="btn btn-outline btn-sm" onClick={() => handlePageChange(page - 1)} disabled={page <= 0}>
+                Previous
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => handlePageChange(page + 1)}
+                disabled={Boolean(searchResults?.last) || page + 1 >= (searchResults?.totalPages ?? 1)}
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

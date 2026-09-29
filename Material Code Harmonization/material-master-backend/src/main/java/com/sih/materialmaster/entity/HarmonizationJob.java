@@ -35,6 +35,12 @@ public class HarmonizationJob {
     @Column(name = "processed_items", nullable = false)
     private Integer processedItems = 0;
 
+    @Column(name = "imported_items", nullable = false)
+    private Integer importedItems = 0;
+
+    @Column(name = "skipped_items", nullable = false)
+    private Integer skippedItems = 0;
+
     @Column(name = "auto_harmonized", nullable = false)
     private Integer autoHarmonized = 0;
 
@@ -44,7 +50,7 @@ public class HarmonizationJob {
     @Column(name = "distinct_materials", nullable = false)
     private Integer distinctMaterials = 0;
 
-    // IN_PROGRESS | COMPLETED | FAILED
+    // QUEUED | PROCESSING_INGESTION | HARMONIZING | IN_PROGRESS | COMPLETED | FAILED
     @Column(name = "status", nullable = false, length = 30)
     private String status = "IN_PROGRESS";
 

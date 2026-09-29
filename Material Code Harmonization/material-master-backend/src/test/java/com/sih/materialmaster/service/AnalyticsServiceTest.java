@@ -40,6 +40,8 @@ class AnalyticsServiceTest {
         when(mappingRepository.countByStatus("REJECTED")).thenReturn(2L);
         when(materialRepository.countUnmatched()).thenReturn(2L);
         when(mappingRepository.countConfirmedDuplicatesEliminated()).thenReturn(3L);
+        when(mappingRepository.sumActiveGroupPriceArbitrage()).thenReturn(BigDecimal.ZERO);
+        when(mappingRepository.findRedundantItemNominalPrices()).thenReturn(List.of());
         when(cpseRepository.count()).thenReturn(2L);
 
         MaterialRepository.CpseMappingCount cpse = mock(MaterialRepository.CpseMappingCount.class);
@@ -56,12 +58,34 @@ class AnalyticsServiceTest {
         DashboardStatsDto result = analyticsService.getDashboardStats();
 
         assertEquals(37.5, result.getDeduplicationRate());
-        assertEquals(2.55, result.getEstimatedSavingsInrLakhs());
+        assertEquals(1.2, result.getEstimatedSavingsInrLakhs());
+        assertEquals(1.2, result.getSavingsBreakdown().getAdminDataCleanupAvoidanceLakhs());
         assertEquals(7L, result.getCategoryDistribution().get("PIPE"));
         assertEquals(5L, result.getCpseBreakdown().get(0).getMappedCount());
         verify(mappingRepository).countConfirmedDuplicatesEliminated();
         verify(materialRepository).countMaterialsAndMappingsByCpse();
         verify(materialRepository).countByCategory();
+    }
+
+    @Test
+    void dashboardSeparatesObservedArbitrageAndInventoryHoldingSavings() {
+        when(mappingRepository.sumActiveGroupPriceArbitrage()).thenReturn(new BigDecimal("50000"));
+        when(mappingRepository.findRedundantItemNominalPrices()).thenReturn(List.of(
+                new BigDecimal("100000"), new BigDecimal("200000"), new BigDecimal("300000")));
+        when(assumptionRepository.findByKey("inventory_carrying_cost_rate_pct"))
+                .thenReturn(java.util.Optional.of(assumption("20")));
+
+        DashboardStatsDto result = analyticsService.getDashboardStats();
+
+        assertEquals(0.5, result.getSavingsBreakdown().getDirectPriceArbitrageLakhs());
+        assertEquals(1.2, result.getSavingsBreakdown().getInventoryHoldingAvoidanceLakhs());
+        assertEquals(1.7, result.getEstimatedSavingsInrLakhs());
+    }
+
+    private com.sih.materialmaster.entity.ProcurementAssumption assumption(String value) {
+        var assumption = new com.sih.materialmaster.entity.ProcurementAssumption();
+        assumption.setValue(new BigDecimal(value));
+        return assumption;
     }
 
     @Test

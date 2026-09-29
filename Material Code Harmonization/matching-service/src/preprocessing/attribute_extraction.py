@@ -15,6 +15,7 @@ MM_PER_INCH = 25.4
 NOMINAL_INCH_TO_MM = {0.5: 15, 1: 25, 1.5: 40, 2: 50, 2.5: 65, 3: 80, 4: 100, 6: 150, 8: 200}
 
 STANDARD_PATTERNS = [
+    r'\b(?:ASTM|ASME|IS|DIN|ISO|BS|SAE|AISI|IEC|API)\s*[\w\d.-]+',
     r'\bIS\s?\d+\b', r'\bASTM\s?[A-Z]?\d+\b', r'\bDIN\s?\d+\b',
     r'\bAPI\s?\d+\b', r'\bASME\s?B?\d+(?:\.\d+)?\b', r'\bISO\s?\d+\b', r'\bIEC\s?\d+\b',
 ]
@@ -58,9 +59,12 @@ MATERIAL_TYPE_PATTERNS = [
     (r'\b(?:C\.?I\.?|Cast\s?Iron)\b', 'CI'),
     (r'\b(?:G\.?I\.?|Galvani[sz]ed\s?Iron)\b', 'GI'),
     (r'\bPVC\b', 'PVC'),
+    (r'\bHDPE\b', 'HDPE'),
+    (r'\bBrass\b', 'BRASS'),
     (r'\bBronze\b', 'BRONZE'),
     (r'\bCopper\b', 'COPPER'),
     (r'\bAluminium\b', 'ALUMINIUM'),
+    (r'\bAluminum\b', 'ALUMINIUM'),
     (r'\b(?:CAF|Compressed\s?Asbestos\s?Fibre)\b', 'CAF'),
     (r'\bPTFE\b', 'PTFE'),
     (r'\bGraphite\b', 'GRAPHITE'),
@@ -82,6 +86,16 @@ def normalize_size_mm(text: str) -> float | None:
     m = re.search(r'(\d+(?:\.\d+)?)\s?mm\b', text, re.IGNORECASE)
     if m:
         return round(float(m.group(1)), 1)
+    m = re.search(r'\b(?:NB|OD|ID)\s*(\d+(?:\.\d+)?)\s*(MM|CM|M|INCH|IN)?\b', text, re.IGNORECASE)
+    if m:
+        value = float(m.group(1))
+        unit = (m.group(2) or "MM").upper()
+        return round(value * {"MM": 1, "CM": 10, "M": 1000, "IN": MM_PER_INCH, "INCH": MM_PER_INCH}[unit], 1)
+    m = re.search(r'\b(\d+(?:\.\d+)?)\s*(CM|M|IN)\b', text, re.IGNORECASE)
+    if m:
+        value = float(m.group(1))
+        unit = m.group(2).upper()
+        return round(value * {"CM": 10, "M": 1000, "IN": MM_PER_INCH}[unit], 1)
     return None
 
 
@@ -208,12 +222,30 @@ def extract_schedule(text: str) -> str | None:
     return f"SCH{m.group(1)}" if m else None
 
 
+def extract_model_identifier(text: str) -> str | None:
+    match = re.search(r'\b[A-Z0-9]{3,}(?:-[A-Z0-9]+)+\b', text, re.IGNORECASE)
+    return match.group(0).upper() if match else None
+
+
+def extract_generic_attributes(text: str) -> dict:
+    """Stable fallback schema for material families unknown to the trained taxonomy."""
+    return {
+        "material": extract_material_type(text),
+        "grade": extract_grade(text),
+        "nominal_size_mm": normalize_size_mm(text),
+        "standard": extract_standard_code(text),
+        "model": extract_model_identifier(text),
+    }
+
+
 def extract_attributes(description: str, specification: str, category: str) -> dict:
     """Category-aware structured-attribute extraction. Returns a dict with only the
     fields relevant to `category`; a missing field is represented as None, not 0 or "",
     so downstream comparison logic can tell 'absent' apart from 'zero'."""
     text = f"{description} {specification or ''}"
     fields = CATEGORY_FIELDS.get(category, [])
+    if not fields:
+        return extract_generic_attributes(text)
     out = {}
     for f in fields:
         if f == "material_type":

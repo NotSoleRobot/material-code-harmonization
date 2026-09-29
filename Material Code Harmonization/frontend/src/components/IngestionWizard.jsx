@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import Papa from "papaparse";
 import {
   UploadCloud, CheckCircle2, AlertCircle, ArrowRight, ArrowLeft,
@@ -41,19 +42,8 @@ const HEADER_ALIASES = {
   cpse_name: ["cpse", "plant", "company", "enterprise", "org", "organisation", "organization", "location", "unit", "werks"],
 };
 
-const SUPPORTED_CATEGORY_LABELS = new Set([
-  "PIPE", "PIPES", "TUBE", "TUBES", "PIPES & TUBES", "PIPES AND TUBES",
-  "VALVE", "VALVES", "INDUSTRIAL VALVE", "INDUSTRIAL VALVES",
-  "FLANGE", "FLANGES", "PIPE FLANGE", "PIPE FLANGES",
-  "PUMP", "PUMPS", "INDUSTRIAL PUMP", "INDUSTRIAL PUMPS",
-  "BEARING", "BEARINGS",
-  "FASTENER", "FASTENERS", "STUDS", "FASTENERS & STUDS", "FASTENERS AND STUDS",
-  "MOTOR", "MOTORS", "ELECTRIC MOTOR", "ELECTRIC MOTORS",
-  "CABLE", "CABLES", "ELECTRICAL CABLE", "ELECTRICAL CABLES",
-]);
-
 function isSupportedCategory(value) {
-  return SUPPORTED_CATEGORY_LABELS.has(String(value || "").trim().replace(/\s+/g, " ").toUpperCase());
+  return String(value || "").trim().length > 0;
 }
 
 function autoMap(headers) {
@@ -88,6 +78,7 @@ const STEPS = [
 
 export function IngestionWizard() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
 
   const [step, setStep] = useState(1);
@@ -231,7 +222,7 @@ export function IngestionWizard() {
       setUploadResult(resp);
       if (resp && resp.jobId) {
         setJobId(resp.jobId);
-        setJobStatus("PROCESSING");
+        setJobStatus(resp.status || "QUEUED");
         pollJob(resp.jobId);
       } else {
         // Synchronous completion response
@@ -253,6 +244,7 @@ export function IngestionWizard() {
         if (job) {
           const total = job.totalItems || rows.length;
           const processed = job.processedItems || 0;
+          setJobStatus(job.status);
           setJobProgress(total > 0 ? Math.round((processed / total) * 100) : 50);
 
           if (job.status === "COMPLETED" || job.status === "FAILED") {
@@ -261,6 +253,11 @@ export function IngestionWizard() {
             setJobStatus(job.status);
             setJobResult(job);
             setIsSubmitting(false);
+            if (job.status === "COMPLETED") {
+              queryClient.invalidateQueries({ queryKey: ["materials"] });
+              queryClient.invalidateQueries({ queryKey: ["codesSearch"] });
+              queryClient.invalidateQueries({ queryKey: ["mappings"] });
+            }
           }
         }
       } catch (err) {
@@ -544,7 +541,7 @@ export function IngestionWizard() {
                   </div>
                   <div>
                     {warningCount > 0
-                      ? `${incompleteCount} incomplete; ${unsupportedCategoryCount} outside the configured taxonomy`
+                      ? `${incompleteCount} incomplete; ${unsupportedCategoryCount} missing a category`
                       : "All rows are structurally complete and use supported categories"}
                   </div>
                 </div>
@@ -675,7 +672,7 @@ export function IngestionWizard() {
                     </div>
                   </div>
 
-                  {uploadResult?.skippedCount > 0 && (
+                  {(jobResult?.skippedItems ?? uploadResult?.skippedCount ?? 0) > 0 && (
                     <div
                       role="status"
                       style={{
@@ -692,10 +689,10 @@ export function IngestionWizard() {
                       <AlertCircle size={18} style={{ flexShrink: 0, marginTop: "2px" }} />
                       <div>
                         <div style={{ fontWeight: 700, marginBottom: "0.35rem" }}>
-                          {uploadResult.importedCount} rows imported; {uploadResult.skippedCount} unsupported or incomplete rows skipped
+                          {jobResult?.importedItems ?? uploadResult?.importedCount ?? 0} rows imported; {jobResult?.skippedItems ?? uploadResult?.skippedCount ?? 0} incomplete rows skipped
                         </div>
                         <div style={{ fontSize: "0.78rem", marginBottom: "0.35rem" }}>
-                          Skipped rows were not assigned to a guessed material category.
+                          Open-domain categories are accepted under GENERAL_MRO; only structurally incomplete or unknown-enterprise rows are skipped.
                         </div>
                         <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.76rem" }}>
                           {(uploadResult.messages || [])

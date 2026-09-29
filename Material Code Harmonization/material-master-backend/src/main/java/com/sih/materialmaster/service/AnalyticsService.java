@@ -59,15 +59,35 @@ public class AnalyticsService {
             dedupRate = Math.round(dedupRate * 10.0) / 10.0;
         }
 
-        // Defensible Savings Calculation based on transparent procurement assumptions (W6.2)
-        BigDecimal carryingCost = getAssumptionValue("carrying_cost_annual_inr", BigDecimal.valueOf(45000));
+        // Price-based savings use observed material values; only administrative
+        // overhead remains assumption-driven because transaction-volume data is absent.
+        BigDecimal directArbitrage = Optional.ofNullable(mappingRepository.sumActiveGroupPriceArbitrage())
+                .orElse(BigDecimal.ZERO);
+        List<BigDecimal> redundantPrices = Optional.ofNullable(mappingRepository.findRedundantItemNominalPrices())
+                .orElse(List.of()).stream().filter(Objects::nonNull).sorted().toList();
+        BigDecimal carryingRatePct = getAssumptionValue("inventory_carrying_cost_rate_pct", BigDecimal.valueOf(20));
+        BigDecimal medianRedundantPrice = median(redundantPrices);
+        BigDecimal inventoryHoldingAvoidance = medianRedundantPrice
+                .multiply(BigDecimal.valueOf(redundantPrices.size()))
+                .multiply(carryingRatePct.movePointLeft(2));
         BigDecimal cleanupAvoided = getAssumptionValue("master_data_cleanup_avoided_inr", BigDecimal.valueOf(25000));
         BigDecimal adminSavings = getAssumptionValue("admin_overhead_reduction_inr", BigDecimal.valueOf(15000));
-
-        BigDecimal totalPerDup = carryingCost.add(cleanupAvoided).add(adminSavings);
-        BigDecimal totalSavingsInr = totalPerDup.multiply(BigDecimal.valueOf(duplicatesEliminated));
-        // Convert to Lakhs (1 Lakh = 100,000 INR)
-        double savingsLakhs = totalSavingsInr.divide(BigDecimal.valueOf(100000), 2, RoundingMode.HALF_UP).doubleValue();
+        BigDecimal adminDataCleanupAvoidance = cleanupAvoided.add(adminSavings)
+                .multiply(BigDecimal.valueOf(duplicatesEliminated));
+        BigDecimal totalSavingsInr = directArbitrage.add(inventoryHoldingAvoidance)
+                .add(adminDataCleanupAvoidance);
+        double directArbitrageLakhs = toLakhs(directArbitrage);
+        double inventoryHoldingLakhs = toLakhs(inventoryHoldingAvoidance);
+        double adminCleanupLakhs = toLakhs(adminDataCleanupAvoidance);
+        double savingsLakhs = toLakhs(totalSavingsInr);
+        DashboardStatsDto.SavingsBreakdownDto savingsBreakdown =
+                new DashboardStatsDto.SavingsBreakdownDto(
+                        directArbitrageLakhs,
+                        inventoryHoldingLakhs,
+                        adminCleanupLakhs,
+                        savingsLakhs,
+                        carryingRatePct.doubleValue(),
+                        redundantPrices.size());
 
         // CPSE Breakdown
         List<DashboardStatsDto.CpseStatDto> cpseStats = materialRepository.countMaterialsAndMappingsByCpse().stream()
@@ -90,6 +110,7 @@ public class AnalyticsService {
                 cpseRepository.count(),
                 dedupRate,
                 savingsLakhs,
+                savingsBreakdown,
                 cpseStats,
                 categoryDistribution
         );
@@ -155,5 +176,17 @@ public class AnalyticsService {
         return assumptionRepository.findByKey(key)
                 .map(ProcurementAssumption::getValue)
                 .orElse(defaultValue);
+    }
+
+    private BigDecimal median(List<BigDecimal> sortedValues) {
+        if (sortedValues.isEmpty()) return BigDecimal.ZERO;
+        int middle = sortedValues.size() / 2;
+        if (sortedValues.size() % 2 == 1) return sortedValues.get(middle);
+        return sortedValues.get(middle - 1).add(sortedValues.get(middle))
+                .divide(BigDecimal.valueOf(2), 4, RoundingMode.HALF_UP);
+    }
+
+    private double toLakhs(BigDecimal value) {
+        return value.divide(BigDecimal.valueOf(100000), 2, RoundingMode.HALF_UP).doubleValue();
     }
 }

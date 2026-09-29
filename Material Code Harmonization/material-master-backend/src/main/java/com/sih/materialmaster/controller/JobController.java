@@ -27,6 +27,8 @@ public class JobController {
         response.put("status", job.getStatus());
         response.put("totalItems", job.getTotalItems());
         response.put("processedItems", job.getProcessedItems());
+        response.put("importedItems", job.getImportedItems());
+        response.put("skippedItems", job.getSkippedItems());
         response.put("autoHarmonized", job.getAutoHarmonized());
         response.put("pendingReview", job.getPendingReview());
         response.put("distinctMaterials", job.getDistinctMaterials());

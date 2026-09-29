@@ -15,4 +15,6 @@ public class BulkUploadResponseDto {
     private int skippedCount;
     private List<String> messages;
     private Long jobId;
+    private String status;
+    private String message;
 }

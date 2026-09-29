@@ -95,8 +95,12 @@ def schema(category: str):
     cat = category.upper()
     schema_data = CATEGORIES.get(cat)
     if schema_data is None:
-        return jsonify({"error": f"Unknown category: {cat}",
-                        "known": list(CATEGORIES.keys())}), 404
+        return jsonify({
+            "category": cat,
+            "identity_critical": ["material"],
+            "variant_critical": ["nominal_size_mm", "standard"],
+            "all_fields": ["material", "grade", "nominal_size_mm", "standard", "model"],
+        }), 200
     return jsonify({
         "category": cat,
         "identity_critical": schema_data.get("identity_critical", []),
@@ -167,7 +171,10 @@ def extract_attributes_endpoint():
             attrs = {}
 
         # Check identity-critical completeness
-        schema_data = CATEGORIES.get(category, {})
+        schema_data = CATEGORIES.get(category, {
+            "identity_critical": ["material"],
+            "variant_critical": ["nominal_size_mm", "standard"],
+        })
         identity_keys = schema_data.get("identity_critical", [])
         missing = [k for k in identity_keys if not attrs.get(k)]
         identity_complete = len(missing) == 0 and len(identity_keys) > 0
