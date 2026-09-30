@@ -10,11 +10,14 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * Production implementation of MatchingClient that talks to the Python
@@ -28,6 +31,8 @@ public class PythonMatchingClient implements MatchingClient {
 
     private final RestClient restClient;
     private final String baseUrl;
+    private final int maxAttempts;
+    private final long retryDelayMs;
     private final Map<String, CachedSchema> schemaCache = new ConcurrentHashMap<>();
     private static final long SCHEMA_TTL_MILLIS = Duration.ofMinutes(10).toMillis();
 
@@ -35,8 +40,12 @@ public class PythonMatchingClient implements MatchingClient {
             @Value("${matching.service.url:http://localhost:5000}") String baseUrl,
             @Value("${matching.service.token:}") String serviceToken,
             @Value("${matching.service.connect-timeout-ms:5000}") int connectTimeout,
-            @Value("${matching.service.read-timeout-ms:60000}") int readTimeout) {
+            @Value("${matching.service.read-timeout-ms:60000}") int readTimeout,
+            @Value("${matching.service.max-attempts:3}") int maxAttempts,
+            @Value("${matching.service.retry-delay-ms:1500}") long retryDelayMs) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        this.maxAttempts = Math.max(1, maxAttempts);
+        this.retryDelayMs = Math.max(0, retryDelayMs);
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofMillis(connectTimeout));
@@ -49,7 +58,8 @@ public class PythonMatchingClient implements MatchingClient {
             clientBuilder.defaultHeader("X-Service-Token", serviceToken);
         }
         this.restClient = clientBuilder.build();
-        log.info("Initialized PythonMatchingClient pointing to: {} (timeouts: connect={}ms, read={}ms)", this.baseUrl, connectTimeout, readTimeout);
+        log.info("Initialized PythonMatchingClient pointing to: {} (timeouts: connect={}ms, read={}ms, attempts={})",
+                this.baseUrl, connectTimeout, readTimeout, this.maxAttempts);
     }
 
     @Override
@@ -67,12 +77,12 @@ public class PythonMatchingClient implements MatchingClient {
             body.put("material_a", toPayloadMap(materialA));
             body.put("material_b", toPayloadMap(materialB));
 
-            return restClient.post()
+            return callMatchingService("/compare", () -> restClient.post()
                     .uri("/compare")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
-                    .body(CompareResponse.class);
+                    .body(CompareResponse.class));
         } catch (Exception ex) {
             throw new MatchingServiceException("Python matching service /compare failed", ex);
         }
@@ -91,12 +101,12 @@ public class PythonMatchingClient implements MatchingClient {
             body.put("candidates", candidatePayloads);
             body.put("top_k", topK);
 
-            return restClient.post()
+            return callMatchingService("/find-matches", () -> restClient.post()
                     .uri("/find-matches")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
-                    .body(FindMatchesResponse.class);
+                    .body(FindMatchesResponse.class));
         } catch (Exception ex) {
             throw new MatchingServiceException("Python matching service /find-matches failed", ex);
         }
@@ -115,12 +125,12 @@ public class PythonMatchingClient implements MatchingClient {
             }
             Map<String, Object> body = Map.of("queries", payloadQueries);
             @SuppressWarnings("unchecked")
-            Map<String, Object> response = restClient.post()
+            Map<String, Object> response = callMatchingService("/find-matches-batch", () -> restClient.post()
                     .uri("/find-matches-batch")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
-                    .body(Map.class);
+                    .body(Map.class));
 
             List<FindMatchesResponse> parsed = new ArrayList<>();
             ObjectMapper mapper = new ObjectMapper();
@@ -155,12 +165,12 @@ public class PythonMatchingClient implements MatchingClient {
             body.put("materials", payloads);
 
             @SuppressWarnings("unchecked")
-            Map<String, Object> response = restClient.post()
+            Map<String, Object> response = callMatchingService("/extract-attributes", () -> restClient.post()
                     .uri("/extract-attributes")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
-                    .body(Map.class);
+                    .body(Map.class));
 
             List<AttributeExtractionResult> results = new ArrayList<>();
             if (response != null && response.get("results") instanceof List<?> rawList) {
@@ -198,10 +208,10 @@ public class PythonMatchingClient implements MatchingClient {
             return cached.schema();
         }
         try {
-            CategorySchemaDto schema = restClient.get()
+            CategorySchemaDto schema = callMatchingService("/schema/" + key, () -> restClient.get()
                     .uri("/schema/" + key)
                     .retrieve()
-                    .body(CategorySchemaDto.class);
+                    .body(CategorySchemaDto.class));
             if (schema == null) {
                 throw new MatchingServiceException("Matching service returned an empty schema for " + key);
             }
@@ -213,6 +223,38 @@ public class PythonMatchingClient implements MatchingClient {
     }
 
     private record CachedSchema(CategorySchemaDto schema, long expiresAt) {}
+
+    private <T> T callMatchingService(String operation, Supplier<T> request) {
+        RuntimeException lastFailure = null;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return request.get();
+            } catch (ResourceAccessException ex) {
+                lastFailure = ex;
+            } catch (RestClientResponseException ex) {
+                int status = ex.getStatusCode().value();
+                if (status != 429 && !ex.getStatusCode().is5xxServerError()) {
+                    throw ex;
+                }
+                lastFailure = ex;
+            }
+
+            if (attempt < maxAttempts) {
+                log.warn("Matching service {} attempt {}/{} failed; retrying in {}ms",
+                        operation, attempt, maxAttempts, retryDelayMs, lastFailure);
+                try {
+                    Thread.sleep(retryDelayMs);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new MatchingServiceException(
+                            "Interrupted while retrying Python matching service " + operation, interrupted);
+                }
+            }
+        }
+        throw lastFailure != null
+                ? lastFailure
+                : new MatchingServiceException("Python matching service " + operation + " failed");
+    }
 
     private Map<String, Object> toPayloadMap(MaterialInfoDto info) {
         Map<String, Object> map = new HashMap<>();
