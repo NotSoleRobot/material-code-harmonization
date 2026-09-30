@@ -7,8 +7,10 @@ services:
     staticPublishPath: ./dist
     autoDeployTrigger: commit
     envVars:
-      # V2 deliberately supersedes any stale VITE_API_BASE_URL value that was
-      # entered manually when the Blueprint was first created.
+      # V3 deliberately supersedes stale values retained by existing static
+      # sites from the retired numm-backend service.
+      - key: VITE_API_BASE_URL_V3
+        value: https://numm-spring-api.onrender.com
       - key: VITE_API_BASE_URL_V2
         value: https://numm-spring-api.onrender.com
       - key: VITE_API_BASE_URL

@@ -1,10 +1,23 @@
 import { queryClient } from "../queryClient";
 
-// Prefer the Blueprint-managed V2 value. The original variable may still hold
-// a manually entered URL from an older Render service.
-const hostedApiOrigin = (
-  import.meta.env.VITE_API_BASE_URL_V2 || import.meta.env.VITE_API_BASE_URL
+// Prefer the newest Blueprint-managed value. Some existing Render static-site
+// environments still contain the retired FastAPI service URL; never allow that
+// known legacy value to take precedence over the Spring API.
+const SPRING_RENDER_ORIGIN = "https://numm-spring-api.onrender.com";
+const LEGACY_RENDER_ORIGINS = new Set([
+  "https://numm-backend.onrender.com",
+]);
+const configuredApiOrigin = (
+  import.meta.env.VITE_API_BASE_URL_V3
+  || import.meta.env.VITE_API_BASE_URL_V2
+  || import.meta.env.VITE_API_BASE_URL
 )?.trim().replace(/\/+$/, "");
+const isHostedRenderFrontend = typeof window !== "undefined"
+  && window.location.hostname === "numm-frontend.onrender.com";
+const hostedApiOrigin = LEGACY_RENDER_ORIGINS.has(configuredApiOrigin)
+  || (!configuredApiOrigin && isHostedRenderFrontend)
+  ? SPRING_RENDER_ORIGIN
+  : configuredApiOrigin;
 const API_BASE = hostedApiOrigin ? `${hostedApiOrigin}/api` : "/api";
 
 let _authToken = sessionStorage.getItem("numm_auth_token") || null;
