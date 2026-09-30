@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Full Reviewer Queue item carrying AI explanation evidence (BUG-11, NFR1, W4.5).
@@ -18,6 +20,14 @@ public class MappingReviewResponse {
     private String status; // PENDING | CONFIRMED | REJECTED | SUPERSEDED
     private BigDecimal confidenceScore;
     private String confidenceTier; // HIGH | MEDIUM | LOW
+    private String decisionSource;
+    private String routingDecision;
+    private String modelVersion;
+    private BigDecimal secondBestScore;
+    private BigDecimal candidateMargin;
+    private Map<String, Double> scoreBreakdown;
+    private List<String> criticalConflicts;
+    private LocalDateTime automaticallyDecidedAt;
 
     private Long materialId;
     private String materialDescription;

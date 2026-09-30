@@ -42,7 +42,7 @@ class CodeControllerTest {
         when(relationRepository.findByGroupA_GroupIdOrGroupB_GroupId(null, null)).thenReturn(List.of());
 
         var response = new CodeController(groupRepository, mappingRepository, relationRepository)
-                .searchCodes("", "ACTIVE", -4, 500, null);
+                .searchCodes("", "ACTIVE", null, -4, 500, null);
 
         assertEquals(1, response.getBody().getTotalElements());
         assertEquals(0, pageableCaptor.getValue().getPageNumber());

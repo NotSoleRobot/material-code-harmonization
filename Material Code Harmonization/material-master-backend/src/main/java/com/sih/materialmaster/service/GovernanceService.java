@@ -25,18 +25,21 @@ public class GovernanceService {
     private final NationalCodeGenerator codeGenerator;
     private final AuditService auditService;
     private final ReviewerAssignmentRepository reviewerAssignmentRepository;
+    private final MatchingFeedbackRepository matchingFeedbackRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public GovernanceService(MaterialMappingRepository mappingRepository,
                              MaterialGroupRepository groupRepository,
                              NationalCodeGenerator codeGenerator,
                              AuditService auditService,
-                             ReviewerAssignmentRepository reviewerAssignmentRepository) {
+                             ReviewerAssignmentRepository reviewerAssignmentRepository,
+                             MatchingFeedbackRepository matchingFeedbackRepository) {
         this.mappingRepository = mappingRepository;
         this.groupRepository = groupRepository;
         this.codeGenerator = codeGenerator;
         this.auditService = auditService;
         this.reviewerAssignmentRepository = reviewerAssignmentRepository;
+        this.matchingFeedbackRepository = matchingFeedbackRepository;
     }
 
     /**
@@ -85,10 +88,24 @@ public class GovernanceService {
         String oldStatus = mapping.getStatus();
 
         mapping.setStatus(targetStatus);
+        mapping.setDecisionSource("HUMAN");
+        mapping.setRoutingDecision("REVIEW_REQUIRED");
+        mapping.setAutomaticallyDecidedAt(null);
         mapping.setReviewedBy(actor);
         mapping.setReviewedAt(LocalDateTime.now());
         mapping.setDecisionNotes(notes);
         MaterialMapping savedMapping = mappingRepository.save(mapping);
+
+        MatchingFeedback feedback = new MatchingFeedback();
+        feedback.setMapping(savedMapping);
+        feedback.setMaterial(savedMapping.getMaterial());
+        feedback.setCandidateGroup(savedMapping.getGroup());
+        feedback.setReviewer(actor);
+        feedback.setModelVersion(savedMapping.getModelVersion());
+        feedback.setSuggestedRelationship(savedMapping.getMatchBasis());
+        feedback.setReviewerDecision(targetStatus);
+        feedback.setNotes(notes);
+        matchingFeedbackRepository.save(feedback);
 
         // Audit the mapping decision (FR9)
         auditService.logEvent(
@@ -228,9 +245,9 @@ public class GovernanceService {
     public String approveAndPublish(Long mappingId, User actor) {
         MaterialMapping mapping = mappingRepository.findById(mappingId)
                 .orElseThrow(() -> new IllegalArgumentException("Mapping not found: " + mappingId));
-        if (mapping.getConfidenceScore() == null || mapping.getConfidenceScore().doubleValue() < 0.85
+        if (mapping.getConfidenceScore() == null || mapping.getConfidenceScore().doubleValue() < 0.90
                 || !"HIGH".equalsIgnoreCase(mapping.getConfidenceTier())) {
-            throw new IllegalStateException("Fast-track requires a HIGH confidence score of at least 85%");
+            throw new IllegalStateException("Fast-track requires a HIGH confidence score of at least 90%");
         }
         if (hasIdentityCriticalConflicts(mapping.getExplanationJson())) {
             throw new IllegalStateException("Fast-track is unavailable because identity-critical conflicts require review");

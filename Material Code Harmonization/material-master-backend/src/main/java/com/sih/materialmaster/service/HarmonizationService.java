@@ -18,7 +18,7 @@ import java.util.*;
 /**
  * HarmonizationService implements the 4-step decision order (D1) specified in NUMM:
  * 1. Deterministic Attribute Signature Match (only when signature is complete)
- * 2. High-Confidence AI Match (Score >= 0.85, EXACT_DUPLICATE or NEAR_DUPLICATE)
+ * 2. Policy-routed AI match (default auto-confirm >= 0.90 with a >= 0.10 candidate margin)
  * 3. Group Relation Classification (FUNCTIONALLY_EQUIVALENT / VARIANT)
  * 4. Novel Specification Registration (PROPOSED group with provisional reference)
  */
@@ -31,6 +31,8 @@ public class HarmonizationService {
     private final MaterialGroupRepository groupRepository;
     private final MaterialMappingRepository mappingRepository;
     private final GroupRelationRepository groupRelationRepository;
+    private final MatchingPolicyRepository matchingPolicyRepository;
+    private final MatchCandidateRepository matchCandidateRepository;
     private final MatchingClient matchingClient;
     private final NationalCodeGenerator codeGenerator;
     private final AuditService auditService;
@@ -40,6 +42,8 @@ public class HarmonizationService {
                                 MaterialGroupRepository groupRepository,
                                 MaterialMappingRepository mappingRepository,
                                 GroupRelationRepository groupRelationRepository,
+                                MatchingPolicyRepository matchingPolicyRepository,
+                                MatchCandidateRepository matchCandidateRepository,
                                 MatchingClient matchingClient,
                                 NationalCodeGenerator codeGenerator,
                                 AuditService auditService) {
@@ -47,6 +51,8 @@ public class HarmonizationService {
         this.groupRepository = groupRepository;
         this.mappingRepository = mappingRepository;
         this.groupRelationRepository = groupRelationRepository;
+        this.matchingPolicyRepository = matchingPolicyRepository;
+        this.matchCandidateRepository = matchCandidateRepository;
         this.matchingClient = matchingClient;
         this.codeGenerator = codeGenerator;
         this.auditService = auditService;
@@ -154,7 +160,10 @@ public class HarmonizationService {
             if (sigGroup.isPresent()) {
                 MaterialGroup group = sigGroup.get();
                 String explanation = "{\"checks\":[\"Exact deterministic attribute signature match\"],\"warnings\":[],\"conflicts\":[]}";
-                MaterialMapping mapping = createOrUpdateMapping(target, group, 1.0, "HIGH", explanation, "DETERMINISTIC_SIGNATURE");
+                RoutingEvidence routing = new RoutingEvidence("AUTO_CONFIRM", "deterministic-signature-1.0",
+                        0.0, 1.0, Map.of("deterministicSignature", 1.0), List.of());
+                MaterialMapping mapping = createOrUpdateMapping(target, group, 1.0, "HIGH", explanation,
+                        "DETERMINISTIC_SIGNATURE", routing);
 
                 result.setStatus("DETERMINISTIC_MATCH");
                 result.setGroupId(group.getGroupId());
@@ -162,6 +171,7 @@ public class HarmonizationService {
                 result.setProposedGroupCode(group.getCommonMaterialCode() != null ? group.getCommonMaterialCode() : group.getProvisionalRef());
                 result.setConfidenceScore(1.0);
                 result.setConfidenceTier("HIGH");
+                result.setRoutingDecision("AUTO_CONFIRM");
                 result.setMatches(Collections.emptyList());
 
                 auditService.logEvent(null, "HARMONIZATION_RUN", "MATERIAL", target.getMaterialId(), null,
@@ -179,7 +189,8 @@ public class HarmonizationService {
             // Novel specification: create proposed group for standalone item
             MaterialGroup group = createOrFindGroupForMaterial(target, targetAttrs, sigResult);
             String explanation = "{\"checks\":[\"Initial novel specification item registered (no candidates)\"],\"warnings\":[],\"conflicts\":[]}";
-            MaterialMapping mapping = createOrUpdateMapping(target, group, 0.0, "LOW", explanation, "NOVEL");
+            MaterialMapping mapping = createOrUpdateMapping(target, group, 0.0, "LOW", explanation, "NOVEL",
+                    RoutingEvidence.novel());
 
             result.setStatus("NOVEL_SPECIFICATION_REGISTERED");
             result.setGroupId(group.getGroupId());
@@ -187,6 +198,7 @@ public class HarmonizationService {
             result.setProposedGroupCode(group.getProvisionalRef());
             result.setConfidenceScore(0.0);
             result.setConfidenceTier("LOW");
+            result.setRoutingDecision("NOVEL");
             result.setMatches(Collections.emptyList());
 
             auditService.logEvent(null, "HARMONIZATION_RUN", "MATERIAL", target.getMaterialId(), null,
@@ -204,11 +216,13 @@ public class HarmonizationService {
                 : matchingClient.findMatches(targetDto, candidateDtos, 5);
         List<MatchCandidateResultDto> matches = matchResponse.getMatches();
         result.setMatches(matches != null ? matches : Collections.emptyList());
+        persistCandidateEvidence(target, candidateEntities, matches);
 
         if (matches == null || matches.isEmpty()) {
             MaterialGroup group = createOrFindGroupForMaterial(target, targetAttrs, sigResult);
             String explanation = "{\"checks\":[\"No close AI matches found — novel item\"],\"warnings\":[],\"conflicts\":[]}";
-            MaterialMapping mapping = createOrUpdateMapping(target, group, 0.0, "LOW", explanation, "NOVEL_SPECIFICATION");
+            MaterialMapping mapping = createOrUpdateMapping(target, group, 0.0, "LOW", explanation,
+                    "NOVEL_SPECIFICATION", RoutingEvidence.novel());
 
             result.setStatus("DISTINCT_MATERIAL_NO_MERGE");
             result.setGroupId(group.getGroupId());
@@ -216,13 +230,17 @@ public class HarmonizationService {
             result.setProposedGroupCode(group.getProvisionalRef());
             result.setConfidenceScore(0.0);
             result.setConfidenceTier("LOW");
+            result.setRoutingDecision("NOVEL");
             return result;
         }
 
         MatchCandidateResultDto topMatch = matches.get(0);
         String rel = topMatch.getPredictedRelationship() != null ? topMatch.getPredictedRelationship() : "NOT_A_MATCH";
         double score = topMatch.getMatchProbability() > 0 ? topMatch.getMatchProbability() : topMatch.getConfidence();
-        String tier = topMatch.getConfidenceTier() != null ? topMatch.getConfidenceTier() : (score >= 0.85 ? "HIGH" : (score >= 0.60 ? "MEDIUM" : "LOW"));
+        String tier = topMatch.getConfidenceTier() != null ? topMatch.getConfidenceTier() : (score >= 0.90 ? "HIGH" : (score >= 0.70 ? "MEDIUM" : "LOW"));
+        double secondBestScore = matches.size() > 1 ? scoreOf(matches.get(1)) : 0.0;
+        double margin = Math.max(0.0, score - secondBestScore);
+        List<String> criticalConflicts = criticalConflicts(topMatch);
 
         result.setConfidenceScore(score);
         result.setConfidenceTier(tier);
@@ -258,6 +276,8 @@ public class HarmonizationService {
         // =========================================================================
         boolean isDuplicateMerge = ("EXACT_DUPLICATE".equalsIgnoreCase(rel) || "NEAR_DUPLICATE".equalsIgnoreCase(rel)) && score >= 0.60;
         boolean isEquivalentOrVariant = ("FUNCTIONALLY_EQUIVALENT".equalsIgnoreCase(rel) || "VARIANT".equalsIgnoreCase(rel)) && score >= 0.60;
+        RoutingEvidence routing = route(target, topMatch, rel, score, secondBestScore, margin,
+                criticalConflicts, isDuplicateMerge);
 
         MaterialGroup targetGroup = null;
         String matchBasis = "NOVEL";
@@ -277,13 +297,14 @@ public class HarmonizationService {
             if (isDuplicateMerge && matchedEntity != null) {
                 Optional<MaterialMapping> candActive = mappingRepository.findActiveByMaterialId(matchedEntity.getMaterialId());
                 if (candActive.isEmpty()) {
-                    createOrUpdateMapping(matchedEntity, targetGroup, score, tier, explanationJson, matchBasis);
+                    createOrUpdateMapping(matchedEntity, targetGroup, score, tier, explanationJson, matchBasis, routing);
                 }
             }
         }
 
         // Create target material mapping
-        MaterialMapping targetMapping = createOrUpdateMapping(target, targetGroup, score, tier, explanationJson, matchBasis);
+        MaterialMapping targetMapping = createOrUpdateMapping(target, targetGroup, score, tier, explanationJson,
+                matchBasis, routing);
 
         // =========================================================================
         // Step 3 (D1): Inter-Group Relations for Equivalent and Variant items
@@ -301,7 +322,9 @@ public class HarmonizationService {
         result.setMappingId(targetMapping.getMappingId());
         result.setGroupId(targetGroup.getGroupId());
         result.setProposedGroupCode(targetGroup.getCommonMaterialCode() != null ? targetGroup.getCommonMaterialCode() : targetGroup.getProvisionalRef());
-        result.setStatus("MAPPING_PROPOSED");
+        result.setRoutingDecision(routing.decision());
+        result.setStatus("AUTO_CONFIRM".equals(routing.decision()) ? "AUTO_HARMONIZED"
+                : ("NOVEL".equals(routing.decision()) ? "NOVEL_SPECIFICATION_REGISTERED" : "REVIEW_REQUIRED"));
 
         // Audit harmonization run (FR9)
         auditService.logEvent(
@@ -310,7 +333,8 @@ public class HarmonizationService {
                 "MATERIAL",
                 target.getMaterialId(),
                 null,
-                "Proposed group " + result.getProposedGroupCode() + " (" + rel + ", tier: " + tier + ", score: " + score + ", basis: " + matchBasis + ")"
+                "Routed " + routing.decision() + " to group " + result.getProposedGroupCode()
+                        + " (" + rel + ", score: " + score + ", margin: " + margin + ", basis: " + matchBasis + ")"
         );
 
         return result;
@@ -408,10 +432,19 @@ public class HarmonizationService {
         }
     }
 
-    private MaterialMapping createOrUpdateMapping(Material material, MaterialGroup group, double score, String tier, String explanationJson, String matchBasis) {
+    private MaterialMapping createOrUpdateMapping(Material material, MaterialGroup group, double score, String tier,
+                                                   String explanationJson, String matchBasis,
+                                                   RoutingEvidence routing) {
         Optional<MaterialMapping> activeMapping = mappingRepository.findActiveByMaterialId(material.getMaterialId());
         MaterialMapping mapping;
-        if (activeMapping.isPresent() && Set.of("CONFIRMED", "REJECTED").contains(activeMapping.get().getStatus())) {
+        boolean sameAutomaticDecision = activeMapping.isPresent()
+                && "CONFIRMED".equals(activeMapping.get().getStatus())
+                && "AUTO_CONFIRM".equals(routing.decision())
+                && "AUTO".equals(activeMapping.get().getDecisionSource())
+                && activeMapping.get().getGroup() != null
+                && Objects.equals(activeMapping.get().getGroup().getGroupId(), group.getGroupId());
+        if (activeMapping.isPresent() && Set.of("CONFIRMED", "REJECTED").contains(activeMapping.get().getStatus())
+                && !sameAutomaticDecision) {
             MaterialMapping decided = activeMapping.get();
             String oldStatus = decided.getStatus();
             decided.setStatus("SUPERSEDED");
@@ -427,11 +460,117 @@ public class HarmonizationService {
         mapping.setGroup(group);
         mapping.setConfidenceScore(BigDecimal.valueOf(score).setScale(4, RoundingMode.HALF_UP));
         mapping.setConfidenceTier(tier);
-        mapping.setStatus("PENDING");
+        boolean autoConfirm = "AUTO_CONFIRM".equals(routing.decision());
+        mapping.setStatus(autoConfirm ? "CONFIRMED" : "PENDING");
         mapping.setExplanationJson(explanationJson);
         mapping.setMatchBasis(matchBasis);
+        mapping.setDecisionSource("AUTO");
+        mapping.setRoutingDecision(routing.decision());
+        mapping.setModelVersion(routing.modelVersion());
+        mapping.setSecondBestScore(decimal(routing.secondBestScore()));
+        mapping.setCandidateMargin(decimal(routing.margin()));
+        mapping.setScoreBreakdown(writeJson(routing.scoreBreakdown(), "{}"));
+        mapping.setCriticalConflicts(writeJson(routing.criticalConflicts(), "[]"));
+        mapping.setAutomaticallyDecidedAt(autoConfirm ? LocalDateTime.now() : null);
 
-        return mappingRepository.save(mapping);
+        MaterialMapping saved = mappingRepository.save(mapping);
+        if (autoConfirm && !sameAutomaticDecision) {
+            auditService.logEvent(null, "MAPPING_AUTO_CONFIRMED", "MATERIAL_MAPPING", saved.getMappingId(),
+                    null, "Policy-confirmed mapping at score " + score + " with margin " + routing.margin());
+        }
+        return saved;
+    }
+
+    private RoutingEvidence route(Material target, MatchCandidateResultDto topMatch, String relationship,
+                                  double score, double secondBestScore, double margin,
+                                  List<String> criticalConflicts, boolean duplicateMerge) {
+        MatchingPolicy policy = target.getCategory() == null ? null
+                : matchingPolicyRepository.findByCategory_CategoryId(target.getCategory().getCategoryId()).orElse(null);
+        double autoThreshold = policy != null ? policy.getAutoConfirmThreshold().doubleValue() : 0.90;
+        double reviewThreshold = policy != null ? policy.getReviewThreshold().doubleValue() : 0.70;
+        double minimumMargin = policy != null ? policy.getMinimumCandidateMargin().doubleValue() : 0.10;
+        boolean autoEnabled = policy == null || policy.isAutoConfirmEnabled();
+
+        String decision;
+        if (autoEnabled && duplicateMerge && score >= autoThreshold && margin >= minimumMargin
+                && criticalConflicts.isEmpty()) {
+            decision = "AUTO_CONFIRM";
+        } else if (score >= reviewThreshold || duplicateMerge
+                || "FUNCTIONALLY_EQUIVALENT".equalsIgnoreCase(relationship)
+                || "VARIANT".equalsIgnoreCase(relationship)) {
+            decision = "REVIEW_REQUIRED";
+        } else {
+            decision = "NOVEL";
+        }
+        String modelVersion = topMatch.getModelVersion() != null
+                ? topMatch.getModelVersion() : "hybrid-rf-1.0";
+        Map<String, Double> breakdown = topMatch.getScoreBreakdown() != null
+                ? topMatch.getScoreBreakdown() : Map.of("modelProbability", score);
+        return new RoutingEvidence(decision, modelVersion, secondBestScore, margin, breakdown, criticalConflicts);
+    }
+
+    private void persistCandidateEvidence(Material target, List<Material> candidates,
+                                          List<MatchCandidateResultDto> matches) {
+        matchCandidateRepository.deleteByMaterial_MaterialId(target.getMaterialId());
+        if (matches == null) return;
+        int rank = 0;
+        for (MatchCandidateResultDto result : matches.stream().limit(5).toList()) {
+            rank++;
+            Long candidateId = candidateId(result);
+            if (candidateId == null) continue;
+            Material candidate = candidates.stream()
+                    .filter(item -> candidateId.equals(item.getMaterialId())).findFirst().orElse(null);
+            if (candidate == null) continue;
+            MatchCandidate evidence = new MatchCandidate();
+            evidence.setMaterial(target);
+            evidence.setCandidateMaterial(candidate);
+            evidence.setCandidateRank(rank);
+            evidence.setPredictedRelationship(result.getPredictedRelationship());
+            evidence.setMatchScore(decimal(scoreOf(result)));
+            evidence.setScoreBreakdown(writeJson(result.getScoreBreakdown(), "{}"));
+            evidence.setCriticalConflicts(writeJson(criticalConflicts(result), "[]"));
+            evidence.setModelVersion(result.getModelVersion() != null ? result.getModelVersion() : "hybrid-rf-1.0");
+            mappingRepository.findActiveByMaterialId(candidateId).ifPresent(m -> evidence.setCandidateGroup(m.getGroup()));
+            matchCandidateRepository.save(evidence);
+        }
+    }
+
+    private Long candidateId(MatchCandidateResultDto result) {
+        if (result.getCandidate() == null) return null;
+        Object value = result.getCandidate().get("material_id");
+        if (value instanceof Number number) return number.longValue();
+        try { return value == null ? null : Long.valueOf(value.toString()); }
+        catch (NumberFormatException ignored) { return null; }
+    }
+
+    private double scoreOf(MatchCandidateResultDto result) {
+        return result.getMatchProbability() > 0 ? result.getMatchProbability() : result.getConfidence();
+    }
+
+    private List<String> criticalConflicts(MatchCandidateResultDto result) {
+        if (result.getCriticalConflicts() != null) return result.getCriticalConflicts();
+        if (result.getExplanation() == null || result.getExplanation().getConflicts() == null) return List.of();
+        return result.getExplanation().getConflicts().stream()
+                .filter(value -> value != null && value.toLowerCase().contains("identity_critical"))
+                .toList();
+    }
+
+    private BigDecimal decimal(double value) {
+        return BigDecimal.valueOf(Math.max(0.0, Math.min(1.0, value))).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private String writeJson(Object value, String fallback) {
+        try { return objectMapper.writeValueAsString(value); }
+        catch (Exception ignored) { return fallback; }
+    }
+
+    private record RoutingEvidence(String decision, String modelVersion, double secondBestScore,
+                                   double margin, Map<String, Double> scoreBreakdown,
+                                   List<String> criticalConflicts) {
+        static RoutingEvidence novel() {
+            return new RoutingEvidence("NOVEL", "hybrid-rf-1.0", 0.0, 0.0,
+                    Map.of("modelProbability", 0.0), List.of());
+        }
     }
 
     private void createGroupRelation(MaterialGroup g1, MaterialGroup g2, String relationType, double confidence) {

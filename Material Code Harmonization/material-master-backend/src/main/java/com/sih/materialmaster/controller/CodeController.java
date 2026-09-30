@@ -99,26 +99,34 @@ public class CodeController {
     public ResponseEntity<Page<NationalCodeDetailsDto>> searchCodes(
             @RequestParam(required = false) String q,
             @RequestParam(required = false, defaultValue = "ACTIVE") String status,
+            @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserPrincipal viewer) {
         String query = (q != null && !q.isBlank()) ? q.trim() : "";
         String effectiveStatus = ("ALL".equalsIgnoreCase(status)) ? null : (status != null && !status.isBlank() ? status.trim().toUpperCase() : "ACTIVE");
+        String effectiveCategory = (category == null || category.isBlank() || "ALL".equalsIgnoreCase(category))
+                ? null : category.trim();
         var pageable = PageRequest.of(
                 Math.max(0, page),
                 Math.min(Math.max(1, size), 100),
                 Sort.by(Sort.Direction.DESC, "createdAt"));
 
         Page<MaterialGroup> groups;
-        if (query.isBlank()) {
+        if (query.isBlank() && effectiveCategory == null) {
             groups = (effectiveStatus != null)
                     ? groupRepository.findByStatus(effectiveStatus, pageable)
                     : groupRepository.findAll(pageable);
         } else {
-            groups = groupRepository.searchGroups(query, effectiveStatus, pageable);
+            groups = groupRepository.searchGroups(query, effectiveStatus, effectiveCategory, pageable);
         }
 
         return ResponseEntity.ok(groups.map(group -> toDetailsDto(group, viewer)));
+    }
+
+    @GetMapping("/categories")
+    public ResponseEntity<List<String>> listCatalogCategories() {
+        return ResponseEntity.ok(groupRepository.findCatalogCategoryNames());
     }
 
     private NationalCodeDetailsDto toDetailsDto(MaterialGroup group, UserPrincipal viewer) {

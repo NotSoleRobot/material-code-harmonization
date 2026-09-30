@@ -34,6 +34,12 @@ class HarmonizationServiceTest {
     private GroupRelationRepository groupRelationRepository;
 
     @Mock
+    private MatchingPolicyRepository matchingPolicyRepository;
+
+    @Mock
+    private MatchCandidateRepository matchCandidateRepository;
+
+    @Mock
     private MatchingClient matchingClient;
 
     @Mock
@@ -120,7 +126,8 @@ class HarmonizationServiceTest {
         HarmonizationResultDto result = harmonizationService.harmonizeMaterial(100L);
 
         assertNotNull(result);
-        assertEquals("MAPPING_PROPOSED", result.getStatus());
+        assertEquals("AUTO_HARMONIZED", result.getStatus());
+        assertEquals("AUTO_CONFIRM", result.getRoutingDecision());
         assertEquals("PROV-2026-000500", result.getProposedGroupCode());
         assertEquals(0.92, result.getConfidenceScore());
         assertEquals("HIGH", result.getConfidenceTier());
@@ -153,6 +160,7 @@ class HarmonizationServiceTest {
 
         assertNotNull(result);
         assertEquals("NOVEL_SPECIFICATION_REGISTERED", result.getStatus());
+        assertEquals("NOVEL", result.getRoutingDecision());
     }
 
     @Test
@@ -202,6 +210,7 @@ class HarmonizationServiceTest {
         assertEquals("DETERMINISTIC_MATCH", result.getStatus());
         assertEquals(1.0, result.getConfidenceScore());
         assertEquals("HIGH", result.getConfidenceTier());
+        assertEquals("AUTO_CONFIRM", result.getRoutingDecision());
         assertEquals("NUMM-40-14-16-000777-X", result.getProposedGroupCode());
     }
 }

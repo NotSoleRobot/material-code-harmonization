@@ -35,6 +35,9 @@ class GovernanceServiceTest {
     @Mock
     private ReviewerAssignmentRepository reviewerAssignmentRepository;
 
+    @Mock
+    private MatchingFeedbackRepository matchingFeedbackRepository;
+
     @InjectMocks
     private GovernanceService governanceService;
 

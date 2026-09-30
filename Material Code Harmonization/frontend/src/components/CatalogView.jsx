@@ -45,9 +45,14 @@ export function CatalogView() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["codesSearch", query, selectedStatus, page, pageSize],
-    queryFn: () => api.searchCodes(query, selectedStatus, page, pageSize),
+    queryKey: ["codesSearch", query, selectedStatus, selectedCategory, page, pageSize],
+    queryFn: () => api.searchCodes(query, selectedStatus, selectedCategory, page, pageSize),
     placeholderData: (previousData) => previousData,
+  });
+
+  const { data: catalogCategories = [] } = useQuery({
+    queryKey: ["catalogCategories"],
+    queryFn: () => api.getCatalogCategories(),
   });
 
   const handleSearchChange = (e) => {
@@ -104,12 +109,8 @@ export function CatalogView() {
     setSearchParams(newParams);
   };
 
-  // Filter results client-side for category if selected
   const pageResults = searchResults?.content || [];
-  const filteredResults = pageResults.filter((g) => {
-    if (selectedCategory === "ALL") return true;
-    return g.categoryName?.toUpperCase() === selectedCategory.toUpperCase();
-  }) || [];
+  const filteredResults = pageResults;
 
   const handleDownloadExport = async (type) => {
     setExportError(null);
@@ -169,14 +170,9 @@ export function CatalogView() {
                 aria-label="Filter by Material Commodity Class"
               >
                 <option value="ALL">{t("catalog.allCategories")}</option>
-                <option value="PIPE">Pipes & Tubes (40-14-07)</option>
-                <option value="VALVE">Industrial Valves (40-14-16)</option>
-                <option value="FLANGE">Pipe Flanges (40-14-17)</option>
-                <option value="PUMP">Industrial Pumps (40-15-15)</option>
-                <option value="BEARING">Bearings (31-17-15)</option>
-                <option value="FASTENER">Fasteners & Studs (31-16-15)</option>
-                <option value="MOTOR">Electric Motors (26-10-11)</option>
-                <option value="CABLE">Electrical Cable (26-12-16)</option>
+                {catalogCategories.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
               </select>
             </div>
 

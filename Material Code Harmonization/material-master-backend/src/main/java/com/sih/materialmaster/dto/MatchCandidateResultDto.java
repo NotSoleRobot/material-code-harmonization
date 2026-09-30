@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.Map;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -23,5 +24,18 @@ public class MatchCandidateResultDto {
     @JsonProperty("confidence_tier")
     private String confidenceTier;
     private ExplanationDto explanation;
+    private Map<String, Object> features;
+    @JsonProperty("score_breakdown")
+    private Map<String, Double> scoreBreakdown;
+    @JsonProperty("critical_conflicts")
+    private List<String> criticalConflicts;
+    @JsonProperty("model_version")
+    private String modelVersion;
+    @JsonProperty("second_best_score")
+    private Double secondBestScore;
+    @JsonProperty("candidate_margin")
+    private Double candidateMargin;
+    @JsonProperty("recommended_route")
+    private String recommendedRoute;
     private Map<String, Object> candidate;
 }

@@ -193,6 +193,22 @@ export function ReviewDetailView() {
         </div>
       )}
 
+      <div className="card" style={{ padding: "0.9rem 1.1rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "0.8rem" }}>
+          <div><div className="text-xs text-muted">Routing decision</div><strong>{mapping.routingDecision || "Legacy review"}</strong></div>
+          <div><div className="text-xs text-muted">Decision source</div><strong>{mapping.decisionSource || "Legacy"}</strong></div>
+          <div><div className="text-xs text-muted">Candidate margin</div><strong>{mapping.candidateMargin != null ? `${(Number(mapping.candidateMargin) * 100).toFixed(1)}%` : "Not recorded"}</strong></div>
+          <div><div className="text-xs text-muted">Model version</div><strong>{mapping.modelVersion || "Not recorded"}</strong></div>
+        </div>
+        {mapping.scoreBreakdown && (
+          <div style={{ marginTop: "0.75rem", display: "flex", flexWrap: "wrap", gap: "0.45rem" }}>
+            {Object.entries(mapping.scoreBreakdown).map(([key, value]) => (
+              <span className="badge badge-neutral" key={key}>{key}: {(Number(value) * 100).toFixed(1)}%</span>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Four-Eyes Conflict of Interest Alert */}
       {isOwnCpse && hasRole("REVIEWER") && (
         <div style={{ display: "flex", gap: "0.75rem", background: "var(--warning-bg)", border: "1px solid var(--warning-border)", borderRadius: "var(--radius-md)", padding: "0.85rem 1.15rem" }}>

@@ -20,6 +20,7 @@ public class HarmonizationResultDto {
     private String proposedGroupCode;
     private Double confidenceScore;
     private String confidenceTier;
+    private String routingDecision;
     private String status;
     private ExplanationDto explanation;
 }

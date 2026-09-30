@@ -51,6 +51,32 @@ public class MaterialMapping {
     @Column(name = "match_basis", length = 30)
     private String matchBasis;
 
+    // AUTO | HUMAN | LEGACY. Publication remains a separate governance decision.
+    @Column(name = "decision_source", nullable = false, length = 20)
+    private String decisionSource = "LEGACY";
+
+    // AUTO_CONFIRM | REVIEW_REQUIRED | NOVEL
+    @Column(name = "routing_decision", nullable = false, length = 30)
+    private String routingDecision = "REVIEW_REQUIRED";
+
+    @Column(name = "model_version", length = 80)
+    private String modelVersion;
+
+    @Column(name = "second_best_score", precision = 5, scale = 4)
+    private BigDecimal secondBestScore;
+
+    @Column(name = "candidate_margin", precision = 5, scale = 4)
+    private BigDecimal candidateMargin;
+
+    @Column(name = "score_breakdown", columnDefinition = "TEXT")
+    private String scoreBreakdown;
+
+    @Column(name = "critical_conflicts", columnDefinition = "TEXT")
+    private String criticalConflicts;
+
+    @Column(name = "automatically_decided_at")
+    private LocalDateTime automaticallyDecidedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewed_by")
     private User reviewedBy;
@@ -83,5 +109,7 @@ public class MaterialMapping {
         if (this.confidenceTier == null) {
             this.confidenceTier = "MEDIUM";
         }
+        if (this.decisionSource == null) this.decisionSource = "LEGACY";
+        if (this.routingDecision == null) this.routingDecision = "REVIEW_REQUIRED";
     }
 }

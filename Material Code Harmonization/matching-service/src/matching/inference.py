@@ -24,9 +24,10 @@ from data_generation.schemas import CATEGORIES
 _MODELS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "models")
 _ARTIFACTS = None
 
-HIGH_CONF_THRESHOLD = 0.85
-MEDIUM_CONF_THRESHOLD = 0.60
+HIGH_CONF_THRESHOLD = 0.90
+MEDIUM_CONF_THRESHOLD = 0.70
 DUPLICATE_CLASSES = {"EXACT_DUPLICATE", "NEAR_DUPLICATE", "FUNCTIONALLY_EQUIVALENT"}
+MODEL_VERSION = os.getenv("MATCHING_MODEL_VERSION", "hybrid-rf-1.0")
 
 
 class MaterialRecord(dict):
@@ -65,6 +66,25 @@ def _confidence_tier(match_proba: float) -> str:
     return "LOW"
 
 
+def _score_evidence(features: dict, model_probability: float, explanation: dict) -> dict:
+    lexical_keys = ("tfidf_word_cosine", "tfidf_char_cosine", "fuzz_token_sort", "fuzz_ratio")
+    lexical_values = [float(features.get(key, 0.0)) for key in lexical_keys]
+    critical_conflicts = [
+        value for value in explanation.get("conflicts", [])
+        if "identity_critical" in str(value).lower()
+    ]
+    return {
+        "score_breakdown": {
+            "modelProbability": round(float(model_probability), 4),
+            "lexicalSimilarity": round(sum(lexical_values) / len(lexical_values), 4),
+            "attributeCompatibility": round(float(features.get("frac_agree", 0.5)), 4),
+            "categoryCompatibility": round(float(features.get("same_category", 1.0)), 4),
+        },
+        "critical_conflicts": critical_conflicts,
+        "model_version": MODEL_VERSION,
+    }
+
+
 def _open_domain_comparison(cat_a, cat_b, desc_a, spec_a, desc_b, spec_b, artifacts) -> dict:
     """Text-weighted fallback for categories without a trained attribute schema."""
     from features.feature_engineering import text_similarity_features
@@ -92,7 +112,7 @@ def _open_domain_comparison(cat_a, cat_b, desc_a, spec_a, desc_b, spec_b, artifa
     attrs_a = extract_attributes(desc_a, spec_a, cat_a)
     attrs_b = extract_attributes(desc_b, spec_b, cat_b)
     shared = [key for key in attrs_a if attrs_a.get(key) and attrs_a.get(key) == attrs_b.get(key)]
-    return {
+    result = {
         "predicted_relationship": label,
         "label_probability": round(score, 4),
         "match_probability": round(score, 4),
@@ -106,6 +126,8 @@ def _open_domain_comparison(cat_a, cat_b, desc_a, spec_a, desc_b, spec_b, artifa
         },
         "features": text_features,
     }
+    result.update(_score_evidence(text_features, score, result["explanation"]))
+    return result
 
 
 def _explain(cat_a, cat_b, desc_a, spec_a, desc_b, spec_b, predicted_label) -> dict:
@@ -185,7 +207,7 @@ def compare_materials(record_a: dict, record_b: dict) -> dict:
 
         explanation = _explain(cat_a, cat_b, desc_a, spec_a, desc_b, spec_b, predicted_label)
 
-        return {
+        result = {
             "predicted_relationship": predicted_label,
             "label_probability": round(label_probability, 4),
             "match_probability": round(float(match_probability), 4),
@@ -195,6 +217,8 @@ def compare_materials(record_a: dict, record_b: dict) -> dict:
             "explanation": explanation,
             "features": f,
         }
+        result.update(_score_evidence(f, match_probability, explanation))
+        return result
     except Exception as e:
         return {
             "predicted_relationship": "NEEDS_REVIEW",
@@ -234,7 +258,24 @@ def find_matches(material: dict, candidate_pool: list, top_k: int = 5,
             results.append(r)
 
     results.sort(key=lambda r: r.get("match_probability", 0.0), reverse=True)
-    return results[:top_k]
+    ranked = results[:top_k]
+    for index, result in enumerate(ranked):
+        score = float(result.get("match_probability", 0.0))
+        second = float(ranked[index + 1].get("match_probability", 0.0)) \
+            if index + 1 < len(ranked) else 0.0
+        margin = max(0.0, score - second)
+        result["second_best_score"] = round(second, 4)
+        result["candidate_margin"] = round(margin, 4)
+        conflicts = result.get("critical_conflicts", [])
+        relationship = result.get("predicted_relationship", "")
+        duplicate = relationship in {"EXACT_DUPLICATE", "NEAR_DUPLICATE"}
+        if duplicate and score >= 0.90 and margin >= 0.10 and not conflicts:
+            result["recommended_route"] = "AUTO_CONFIRM"
+        elif score >= 0.70 or relationship in {"FUNCTIONALLY_EQUIVALENT", "VARIANT"}:
+            result["recommended_route"] = "REVIEW_REQUIRED"
+        else:
+            result["recommended_route"] = "NOVEL"
+    return ranked
 
 
 def find_matches_batch(queries: list) -> list:

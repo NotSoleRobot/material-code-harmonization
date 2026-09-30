@@ -1,6 +1,7 @@
 package com.sih.materialmaster.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.sih.materialmaster.dto.*;
 import com.sih.materialmaster.entity.AuditTrail;
 import com.sih.materialmaster.entity.MaterialMapping;
@@ -248,6 +249,22 @@ public class MaterialMappingController {
         resp.setStatus(mapping.getStatus());
         resp.setConfidenceScore(mapping.getConfidenceScore());
         resp.setConfidenceTier(mapping.getConfidenceTier());
+        resp.setDecisionSource(mapping.getDecisionSource());
+        resp.setRoutingDecision(mapping.getRoutingDecision());
+        resp.setModelVersion(mapping.getModelVersion());
+        resp.setSecondBestScore(mapping.getSecondBestScore());
+        resp.setCandidateMargin(mapping.getCandidateMargin());
+        resp.setAutomaticallyDecidedAt(mapping.getAutomaticallyDecidedAt());
+        if (mapping.getScoreBreakdown() != null) {
+            try {
+                resp.setScoreBreakdown(objectMapper.readValue(mapping.getScoreBreakdown(), new TypeReference<Map<String, Double>>() {}));
+            } catch (Exception ignored) {}
+        }
+        if (mapping.getCriticalConflicts() != null) {
+            try {
+                resp.setCriticalConflicts(objectMapper.readValue(mapping.getCriticalConflicts(), new TypeReference<List<String>>() {}));
+            } catch (Exception ignored) {}
+        }
 
         if (mapping.getMaterial() != null) {
             resp.setMaterialId(mapping.getMaterial().getMaterialId());

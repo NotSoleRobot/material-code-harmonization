@@ -169,10 +169,13 @@ export const api = {
     return request(`${API_BASE}/codes/${encodeURIComponent(code)}/validate`);
   },
 
-  async searchCodes(query = "", status = "ACTIVE", page = 0, size = 20) {
+  async searchCodes(query = "", status = "ACTIVE", category = "ALL", page = 0, size = 20) {
     let url = `${API_BASE}/codes/search?q=${encodeURIComponent(query)}&page=${page}&size=${size}`;
     if (status) {
       url += `&status=${encodeURIComponent(status)}`;
+    }
+    if (category && category !== "ALL") {
+      url += `&category=${encodeURIComponent(category)}`;
     }
     const response = await request(url);
     if (Array.isArray(response)) {
@@ -187,6 +190,10 @@ export const api = {
       };
     }
     return response;
+  },
+
+  async getCatalogCategories() {
+    return request(`${API_BASE}/codes/categories`);
   },
 
   // --- Review queue and governance ---

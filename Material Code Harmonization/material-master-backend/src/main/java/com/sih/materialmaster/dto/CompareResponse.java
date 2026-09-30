@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.Map;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -24,5 +25,11 @@ public class CompareResponse {
     private Map<String, Double> classProbabilities;
     private ExplanationDto explanation;
     private Map<String, Object> features;
+    @JsonProperty("score_breakdown")
+    private Map<String, Double> scoreBreakdown;
+    @JsonProperty("critical_conflicts")
+    private List<String> criticalConflicts;
+    @JsonProperty("model_version")
+    private String modelVersion;
     private String note;
 }

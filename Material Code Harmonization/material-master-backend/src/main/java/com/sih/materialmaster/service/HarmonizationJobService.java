@@ -169,8 +169,8 @@ public class HarmonizationJobService {
             for (Long materialId : materialIds) {
                 try {
                     var result = harmonizationService.harmonizeMaterial(materialId, matches.get(materialId));
-                    if ("HIGH".equalsIgnoreCase(result.getConfidenceTier())) auto++;
-                    else if ("MEDIUM".equalsIgnoreCase(result.getConfidenceTier())) review++;
+                    if ("AUTO_CONFIRM".equalsIgnoreCase(result.getRoutingDecision())) auto++;
+                    else if ("REVIEW_REQUIRED".equalsIgnoreCase(result.getRoutingDecision())) review++;
                     else distinct++;
                 } catch (Exception ex) {
                     failures++;
@@ -334,9 +334,9 @@ public class HarmonizationJobService {
                         Long matId = batchIds.get(offset);
                         try {
                             var res = harmonizationService.harmonizeMaterial(matId, batchMatches.get(matId));
-                            if ("HIGH".equalsIgnoreCase(res.getConfidenceTier())) {
+                            if ("AUTO_CONFIRM".equalsIgnoreCase(res.getRoutingDecision())) {
                                 auto++;
-                            } else if ("MEDIUM".equalsIgnoreCase(res.getConfidenceTier())) {
+                            } else if ("REVIEW_REQUIRED".equalsIgnoreCase(res.getRoutingDecision())) {
                                 review++;
                             } else {
                                 distinct++;

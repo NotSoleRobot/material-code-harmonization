@@ -63,6 +63,8 @@ class TestMatchingServiceApp(unittest.TestCase):
         self.assertIn("predicted_relationship", data)
         self.assertIn("confidence", data)
         self.assertIn("confidence_tier", data)
+        self.assertIn("score_breakdown", data)
+        self.assertIn("model_version", data)
         self.assertIn("explanation", data)
         self.assertIn("checks", data["explanation"])
 

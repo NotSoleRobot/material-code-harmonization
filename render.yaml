@@ -44,6 +44,8 @@ services:
         value: 10000
       - key: MATCHING_SERVICE_TOKEN
         generateValue: true
+      - key: MATCHING_MODEL_VERSION
+        value: hybrid-rf-1.0
     buildFilter:
       paths:
         - Material Code Harmonization/matching-service/**
