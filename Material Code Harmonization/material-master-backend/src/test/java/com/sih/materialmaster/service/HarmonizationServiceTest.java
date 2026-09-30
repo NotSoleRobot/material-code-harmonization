@@ -76,7 +76,7 @@ class HarmonizationServiceTest {
         candidateMaterial.setCpseMaterialCode("P-50-CS");
         candidateMaterial.setDescription("CARBON STEEL PIPE DN50 SCHEDULE 40 GR.B");
 
-        when(matchingClient.getCategorySchema(anyString()))
+        lenient().when(matchingClient.getCategorySchema(anyString()))
                 .thenReturn(new CategorySchemaDto("PIPING", List.of("material"), List.of(), List.of("material")));
     }
 
@@ -153,6 +153,26 @@ class HarmonizationServiceTest {
 
         assertNotNull(result);
         assertEquals("NOVEL_SPECIFICATION_REGISTERED", result.getStatus());
+    }
+
+    @Test
+    @DisplayName("Batch candidate matching falls back to the single-query endpoint")
+    void prepareBatchMatchesFallsBackWhenBatchEndpointFails() {
+        when(materialRepository.findById(100L)).thenReturn(Optional.of(queryMaterial));
+        when(materialRepository.findRelevantCandidates(anyLong(), anyLong(), anyString(), any(), any()))
+                .thenReturn(List.of(candidateMaterial));
+        when(matchingClient.findMatchesBatch(anyList()))
+                .thenThrow(new RuntimeException("batch endpoint unavailable"));
+
+        FindMatchesResponse fallbackResponse = new FindMatchesResponse(List.of());
+        when(matchingClient.findMatches(any(MaterialInfoDto.class), anyList(), eq(5)))
+                .thenReturn(fallbackResponse);
+
+        Map<Long, FindMatchesResponse> result = harmonizationService.prepareBatchMatches(List.of(100L));
+
+        assertSame(fallbackResponse, result.get(100L));
+        verify(matchingClient).findMatchesBatch(anyList());
+        verify(matchingClient).findMatches(any(MaterialInfoDto.class), anyList(), eq(5));
     }
 
     @Test

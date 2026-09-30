@@ -331,7 +331,21 @@ public class HarmonizationService {
             queries.add(new FindMatchesBatchQuery(toDto(target), candidates, 5));
             queryIds.add(materialId);
         }
-        List<FindMatchesResponse> responses = matchingClient.findMatchesBatch(queries);
+        List<FindMatchesResponse> responses;
+        try {
+            responses = matchingClient.findMatchesBatch(queries);
+        } catch (RuntimeException batchFailure) {
+            // A free hosted worker can be running an older image or can time out
+            // while warming the batch model. Do not fail every material when the
+            // stable single-query endpoint can recover the same work.
+            log.warn("Batch matching failed for {} materials; falling back to individual requests: {}",
+                    queries.size(), batchFailure.getMessage());
+            responses = new ArrayList<>(queries.size());
+            for (FindMatchesBatchQuery query : queries) {
+                responses.add(matchingClient.findMatches(
+                        query.material(), query.candidates(), query.topK()));
+            }
+        }
         Map<Long, FindMatchesResponse> byMaterial = new LinkedHashMap<>();
         for (int i = 0; i < queryIds.size(); i++) {
             byMaterial.put(queryIds.get(i), responses.get(i));

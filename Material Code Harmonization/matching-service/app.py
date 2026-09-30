@@ -72,7 +72,11 @@ def service_failure(error):
 @app.route("/health", methods=["GET"])
 def health():
     """Spring Boot actuator or Docker HEALTHCHECK can poll this."""
-    return jsonify({"status": "ok", "service": "numm-matching-service"}), 200
+    return jsonify({
+        "status": "ok",
+        "service": "numm-matching-service",
+        "capabilities": ["compare", "extract-attributes", "find-matches", "find-matches-batch"],
+    }), 200
 
 
 # ---------------------------------------------------------------------------
