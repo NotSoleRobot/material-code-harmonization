@@ -70,6 +70,13 @@ services:
         sync: false
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
+      # Supabase Free session pool permits only a small number of clients.
+      # Two connections are enough for this API and leave capacity during a
+      # Render rolling deploy while the previous instance is still retiring.
+      - key: DB_POOL_MAX_SIZE
+        value: 2
+      - key: DB_POOL_MIN_IDLE
+        value: 0
       # V2 supersedes the manually entered URL from the first deployment.
       - key: MATCHING_SERVICE_URL_V2
         fromService:

@@ -33,9 +33,17 @@ Enter these values when Render asks for Blueprint environment variables:
 
 | Render variable | Value |
 |---|---|
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://HOST:PORT/postgres?sslmode=require` |
+| `SPRING_DATASOURCE_URL` | Supabase **Session pooler** JDBC URL, `jdbc:postgresql://HOST:5432/postgres?sslmode=require` |
 | `SPRING_DATASOURCE_USERNAME` | Supabase database/pooler user |
 | `SPRING_DATASOURCE_PASSWORD` | Supabase database password |
+
+The hosted profile limits HikariCP to two connections with zero permanently
+idle connections and retries Flyway startup while a previous Render instance
+is shutting down. Keep the obsolete `numm-backend` service suspended or delete
+it after confirming `numm-spring-api` is healthy; two database-backed services
+pointing at the same free Supabase session pool can exhaust its 15-session
+limit. Do not switch the Spring/Hibernate datasource to Supabase transaction
+mode unless JDBC prepared statements are explicitly disabled.
 
 Use a new hosted database. Flyway creates the application schema and seed reference
 data on the first backend start.
