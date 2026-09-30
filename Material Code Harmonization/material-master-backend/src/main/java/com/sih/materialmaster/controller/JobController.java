@@ -3,6 +3,7 @@ package com.sih.materialmaster.controller;
 import com.sih.materialmaster.entity.HarmonizationJob;
 import com.sih.materialmaster.service.HarmonizationJobService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,6 +17,7 @@ public class JobController {
     }
 
     @GetMapping("/{id}")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getJobStatus(@PathVariable Long id,
             @org.springframework.security.core.annotation.AuthenticationPrincipal com.sih.materialmaster.security.UserPrincipal user) {
         HarmonizationJob job = jobService.getJob(id);

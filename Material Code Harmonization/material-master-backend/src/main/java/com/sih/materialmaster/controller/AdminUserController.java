@@ -54,6 +54,7 @@ public class AdminUserController {
     }
 
     @GetMapping
+    @Transactional(readOnly = true)
     public List<UserProfileDto> listAllUsers() {
         List<User> users = userRepository.findAll();
         List<UserProfileDto> result = new ArrayList<>();

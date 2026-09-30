@@ -12,6 +12,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import com.sih.materialmaster.security.UserPrincipal;
 
@@ -42,6 +43,7 @@ public class CodeController {
      * Resolves a national material code (or provisional ref) to canonical record and linked materials.
      */
     @GetMapping("/{code}")
+    @Transactional(readOnly = true)
     public ResponseEntity<NationalCodeDetailsDto> resolveCode(@PathVariable String code,
             @AuthenticationPrincipal UserPrincipal viewer) {
         String clean = code.trim().toUpperCase();
@@ -93,6 +95,7 @@ public class CodeController {
      * Search canonical national codes by text or partial code.
      */
     @GetMapping("/search")
+    @Transactional(readOnly = true)
     public ResponseEntity<Page<NationalCodeDetailsDto>> searchCodes(
             @RequestParam(required = false) String q,
             @RequestParam(required = false, defaultValue = "ACTIVE") String status,

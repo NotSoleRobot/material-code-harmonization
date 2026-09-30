@@ -62,6 +62,7 @@ public class MaterialController {
      * FR1: Retrieve materials. For OPERATOR, strictly scoped to currentUser.cpseId (W1.1 #6).
      */
     @GetMapping
+    @Transactional(readOnly = true)
     public List<MaterialResponse> getAllMaterials(@AuthenticationPrincipal UserPrincipal currentUser) {
         List<Material> materials;
         if (currentUser != null && "OPERATOR".equalsIgnoreCase(currentUser.getRole())) {
@@ -127,6 +128,7 @@ public class MaterialController {
      * FR1: Retrieve material by ID. Strictly enforces CPSE isolation with 403 Forbidden on violation (W1.1 #6).
      */
     @GetMapping("/{id}")
+    @Transactional(readOnly = true)
     public ResponseEntity<MaterialResponse> getMaterial(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -144,6 +146,7 @@ public class MaterialController {
     }
 
     @GetMapping("/unmatched")
+    @Transactional(readOnly = true)
     public List<MaterialResponse> getUnmatchedMaterials(@AuthenticationPrincipal UserPrincipal currentUser) {
         List<Material> unmatched = materialRepository.findUnmatched();
         if (currentUser != null && "OPERATOR".equalsIgnoreCase(currentUser.getRole())) {

@@ -147,7 +147,7 @@ export function ReviewDetailView() {
   // Conflict of Interest check: ordinary reviewers cannot decide their own CPSE's materials.
   const isOwnCpse = user?.cpse?.name && mapping.cpseName
     && user.cpse.name.toUpperCase() === mapping.cpseName.toUpperCase();
-  const canApprove = hasRole(["REVIEWER", "SENIOR_REVIEWER", "ADMIN"])
+  const canApprove = hasRole(["REVIEWER", "SENIOR_REVIEWER"])
     && (!isOwnCpse || hasRole("SENIOR_REVIEWER"));
 
   // Parse explanation JSON

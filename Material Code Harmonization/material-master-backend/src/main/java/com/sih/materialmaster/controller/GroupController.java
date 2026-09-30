@@ -10,6 +10,7 @@ import com.sih.materialmaster.security.UserPrincipal;
 import com.sih.materialmaster.service.GovernanceService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -34,6 +35,7 @@ public class GroupController {
      * WP4 Task 4 / D3: Retrieve groups in PROPOSED state with >= 1 CONFIRMED mapping awaiting national code publication.
      */
     @GetMapping("/publishable")
+    @Transactional(readOnly = true)
     public ResponseEntity<List<PublishableGroupDto>> getPublishableGroups() {
         List<MaterialGroup> groups = governance.getPublishableGroups();
         List<PublishableGroupDto> dtos = new ArrayList<>();

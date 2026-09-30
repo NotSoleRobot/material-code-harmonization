@@ -10,15 +10,9 @@ services:
       # V2 deliberately supersedes any stale VITE_API_BASE_URL value that was
       # entered manually when the Blueprint was first created.
       - key: VITE_API_BASE_URL_V2
-        fromService:
-          type: web
-          name: numm-spring-api
-          envVarKey: RENDER_EXTERNAL_URL
+        value: https://numm-spring-api.onrender.com
       - key: VITE_API_BASE_URL
-        fromService:
-          type: web
-          name: numm-spring-api
-          envVarKey: RENDER_EXTERNAL_URL
+        value: https://numm-spring-api.onrender.com
     routes:
       - type: rewrite
         source: /*
@@ -97,12 +91,9 @@ services:
       - key: JWT_EXPIRATION_MS
         value: 28800000
       - key: CORS_ALLOWED_ORIGINS
-        sync: false
+        value: https://numm-frontend.onrender.com
       - key: CORS_ALLOWED_ORIGINS_V2
-        fromService:
-          type: web
-          name: numm-frontend
-          envVarKey: RENDER_EXTERNAL_URL
+        value: https://numm-frontend.onrender.com
       - key: BOOTSTRAP_ADMIN_EMAIL
         value: admin@numm.gov.in
       - key: BOOTSTRAP_ADMIN_PASSWORD

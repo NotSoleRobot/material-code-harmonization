@@ -14,6 +14,7 @@ import com.sih.materialmaster.service.HarmonizationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -57,6 +58,7 @@ public class HarmonizationController {
      * Trigger candidate retrieval and match proposals for a single ingested material.
      */
     @PostMapping("/material/{materialId}")
+    @Transactional
     public ResponseEntity<HarmonizationResultDto> harmonizeSingle(@PathVariable Long materialId,
             @AuthenticationPrincipal UserPrincipal user) {
         Material material = materialRepository.findById(materialId).orElseThrow(() -> new IllegalArgumentException("Material not found"));

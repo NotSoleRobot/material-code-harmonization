@@ -36,6 +36,7 @@ export function CatalogView() {
   const [isExporting, setIsExporting] = useState(false);
 
   const isOperator = user?.role === "OPERATOR";
+  const canExport = ["SENIOR_REVIEWER", "ADMIN"].includes(user?.role);
 
   // Fetch canonical codes
   const {
@@ -136,11 +137,11 @@ export function CatalogView() {
             <Link to="/ingest" className="btn btn-primary" id="btn-request-code">
               <PlusCircle size={15} aria-hidden="true" /> {t("catalog.requestCodeBtn")}
             </Link>
-          ) : (
+          ) : canExport ? (
             <button className="btn btn-outline" onClick={() => setShowExportModal(true)} id="btn-export-catalog">
               <Download size={15} aria-hidden="true" /> {t("catalog.exportBtn")}
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 

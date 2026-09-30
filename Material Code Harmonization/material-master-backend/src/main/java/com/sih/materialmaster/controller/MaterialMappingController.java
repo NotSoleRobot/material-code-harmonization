@@ -18,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -97,6 +98,7 @@ public class MaterialMappingController {
     }
 
     @GetMapping("/{id}")
+    @Transactional(readOnly = true)
     public ResponseEntity<MappingReviewResponse> getMappingById(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal currentUser) {
         MaterialMapping mapping = mappingRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("No mapping found with ID: " + id));
@@ -205,6 +207,7 @@ public class MaterialMappingController {
      * FR9: Audit trail log query.
      */
     @GetMapping("/audit")
+    @Transactional(readOnly = true)
     public List<AuditTrailDto> getAuditLogs(@RequestParam(required = false) String action) {
         List<AuditTrail> logs = (action != null && !action.isBlank() && !"ALL".equalsIgnoreCase(action))
                 ? auditTrailRepository.findByActionAndEntityTypeInOrderByTimestampDesc(
