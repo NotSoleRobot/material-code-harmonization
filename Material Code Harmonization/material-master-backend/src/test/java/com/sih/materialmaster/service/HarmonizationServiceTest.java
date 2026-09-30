@@ -164,6 +164,40 @@ class HarmonizationServiceTest {
     }
 
     @Test
+    @DisplayName("Explicit model uncertainty is routed to review even at a low score")
+    void testHarmonizeMaterial_NeedsReviewNeverBecomesNovel() {
+        when(codeGenerator.computeAttributeSignature(any(), any(), any()))
+                .thenReturn(new NationalCodeGenerator.SignatureResult("sig_uncertain", false));
+        when(materialRepository.findById(100L)).thenReturn(Optional.of(queryMaterial));
+        when(materialRepository.findRelevantCandidates(anyLong(), anyLong(), anyString(), any(), any()))
+                .thenReturn(List.of(candidateMaterial));
+
+        MatchCandidateResultDto uncertain = new MatchCandidateResultDto();
+        uncertain.setPredictedRelationship("NEEDS_REVIEW");
+        uncertain.setMatchProbability(0.0587);
+        uncertain.setConfidenceTier("LOW");
+        uncertain.setCandidate(Map.of("material_id", 200L));
+        when(matchingClient.findMatches(any(), anyList(), eq(5)))
+                .thenReturn(new FindMatchesResponse(List.of(uncertain)));
+
+        when(codeGenerator.generateProvisionalRef(any(), anyLong())).thenReturn("PROV-2026-000502");
+        MaterialGroup group = new MaterialGroup();
+        group.setGroupId(502L);
+        group.setProvisionalRef("PROV-2026-000502");
+        when(groupRepository.save(any(MaterialGroup.class))).thenReturn(group);
+        when(mappingRepository.save(any(MaterialMapping.class))).thenAnswer(invocation -> {
+            MaterialMapping mapping = invocation.getArgument(0);
+            mapping.setMappingId(1002L);
+            return mapping;
+        });
+
+        HarmonizationResultDto result = harmonizationService.harmonizeMaterial(100L);
+
+        assertEquals("REVIEW_REQUIRED", result.getRoutingDecision());
+        assertEquals("REVIEW_REQUIRED", result.getStatus());
+    }
+
+    @Test
     @DisplayName("Batch candidate matching falls back to the single-query endpoint")
     void prepareBatchMatchesFallsBackWhenBatchEndpointFails() {
         when(materialRepository.findById(100L)).thenReturn(Optional.of(queryMaterial));

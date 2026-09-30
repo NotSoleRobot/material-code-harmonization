@@ -496,6 +496,7 @@ public class HarmonizationService {
                 && criticalConflicts.isEmpty()) {
             decision = "AUTO_CONFIRM";
         } else if (score >= reviewThreshold || duplicateMerge
+                || "NEEDS_REVIEW".equalsIgnoreCase(relationship)
                 || "FUNCTIONALLY_EQUIVALENT".equalsIgnoreCase(relationship)
                 || "VARIANT".equalsIgnoreCase(relationship)) {
             decision = "REVIEW_REQUIRED";
