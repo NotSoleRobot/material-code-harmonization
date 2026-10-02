@@ -21,10 +21,10 @@ public class MatchingPolicy {
     private MaterialCategory category;
 
     @Column(name = "auto_confirm_threshold", nullable = false, precision = 5, scale = 4)
-    private BigDecimal autoConfirmThreshold = new BigDecimal("0.9000");
+    private BigDecimal autoConfirmThreshold = new BigDecimal("0.8500");
 
     @Column(name = "review_threshold", nullable = false, precision = 5, scale = 4)
-    private BigDecimal reviewThreshold = new BigDecimal("0.7000");
+    private BigDecimal reviewThreshold = new BigDecimal("0.6000");
 
     @Column(name = "minimum_candidate_margin", nullable = false, precision = 5, scale = 4)
     private BigDecimal minimumCandidateMargin = new BigDecimal("0.1000");

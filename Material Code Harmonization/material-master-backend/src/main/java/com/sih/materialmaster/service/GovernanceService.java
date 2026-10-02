@@ -245,9 +245,9 @@ public class GovernanceService {
     public String approveAndPublish(Long mappingId, User actor) {
         MaterialMapping mapping = mappingRepository.findById(mappingId)
                 .orElseThrow(() -> new IllegalArgumentException("Mapping not found: " + mappingId));
-        if (mapping.getConfidenceScore() == null || mapping.getConfidenceScore().doubleValue() < 0.90
+        if (mapping.getConfidenceScore() == null || mapping.getConfidenceScore().doubleValue() < 0.85
                 || !"HIGH".equalsIgnoreCase(mapping.getConfidenceTier())) {
-            throw new IllegalStateException("Fast-track requires a HIGH confidence score of at least 90%");
+            throw new IllegalStateException("Fast-track requires a HIGH confidence score of at least 85%");
         }
         if (hasIdentityCriticalConflicts(mapping.getExplanationJson())) {
             throw new IllegalStateException("Fast-track is unavailable because identity-critical conflicts require review");

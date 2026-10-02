@@ -123,13 +123,13 @@ class GovernanceServiceTest {
 
         when(groupRepository.findLockedById(100L)).thenReturn(Optional.of(group));
         when(mappingRepository.findByGroup_GroupId(100L)).thenReturn(java.util.List.of(approved));
-        when(codeGenerator.mintNationalCode(any(), any(), any())).thenReturn("NUMM-40-14-16-000100-K");
+        when(codeGenerator.mintNationalCode(any(), any(), any())).thenReturn("NUMM-401416-CS-050-S40-000100-K");
         when(groupRepository.save(any(MaterialGroup.class))).thenAnswer(inv -> inv.getArgument(0));
 
         String code = governanceService.mintGroup(100L, seniorReviewer);
-        assertEquals("NUMM-40-14-16-000100-K", code);
+        assertEquals("NUMM-401416-CS-050-S40-000100-K", code);
         assertEquals("ACTIVE", group.getStatus());
-        assertEquals("NUMM-40-14-16-000100-K", group.getCommonMaterialCode());
+        assertEquals("NUMM-401416-CS-050-S40-000100-K", group.getCommonMaterialCode());
     }
 
     @Test

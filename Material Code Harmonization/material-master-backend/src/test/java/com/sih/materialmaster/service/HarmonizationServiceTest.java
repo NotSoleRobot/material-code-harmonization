@@ -226,7 +226,7 @@ class HarmonizationServiceTest {
 
         MaterialGroup existingGroup = new MaterialGroup();
         existingGroup.setGroupId(777L);
-        existingGroup.setCommonMaterialCode("NUMM-40-14-16-000777-X");
+        existingGroup.setCommonMaterialCode("NUMM-401416-CS-050-S40-000777-X");
         existingGroup.setAttributeSignature("sig_exact_hash_123");
 
         when(groupRepository.findByAttributeSignature("sig_exact_hash_123")).thenReturn(Optional.of(existingGroup));
@@ -245,6 +245,6 @@ class HarmonizationServiceTest {
         assertEquals(1.0, result.getConfidenceScore());
         assertEquals("HIGH", result.getConfidenceTier());
         assertEquals("AUTO_CONFIRM", result.getRoutingDecision());
-        assertEquals("NUMM-40-14-16-000777-X", result.getProposedGroupCode());
+        assertEquals("NUMM-401416-CS-050-S40-000777-X", result.getProposedGroupCode());
     }
 }

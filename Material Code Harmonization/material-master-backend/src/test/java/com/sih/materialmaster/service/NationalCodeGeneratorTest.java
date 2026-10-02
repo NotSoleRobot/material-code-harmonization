@@ -51,7 +51,8 @@ class NationalCodeGeneratorTest {
 
         assertNotNull(code);
         // Semi-significant format: NUMM-401418-XX-000-000-000101-K
-        assertTrue(code.startsWith("NUMM-401418-"), "Code must start with NUMM-segment-family-class");
+        assertTrue(code.startsWith("NUMM-401418-XX-000-STD-000101-"),
+                "Missing attributes must use neutral placeholders, never fabricated engineering values");
 
         // Validate ISO 7064 checksum
         assertTrue(Iso7064Mod3736.validate(code), "Minted national code must pass ISO 7064 checksum validation");
@@ -65,6 +66,18 @@ class NationalCodeGeneratorTest {
         assertNotNull(provCode);
         assertTrue(provCode.startsWith("PROV-"), "Provisional code must start with PROV-");
         assertTrue(provCode.endsWith("-000456"), "Provisional code must end with padded ID");
+    }
+
+    @Test
+    @DisplayName("Engineering tokens are encoded without ambiguous substring matches")
+    void materialAndRatingKeysDoNotCollide() {
+        String code = generator.mintNationalCode(
+                commodityCategory,
+                Map.of("material", "BRASS", "nominal_size_mm", "25", "pressure_class", "CLASS 800"),
+                "PROV-401418-000101");
+
+        assertTrue(code.startsWith("NUMM-401418-BR-025-800-000101-"));
+        assertTrue(Iso7064Mod3736.validate(code));
     }
 
     @Test

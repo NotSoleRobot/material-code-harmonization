@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class Iso7064Mod3736Test {
 
-    private static final String SAMPLE_BASE = "NUMM-40-14-07-000042";
+    private static final String SAMPLE_BASE = "NUMM-401407-CS-050-S40-000042";
     private static final String ALPHABET     = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
     // -----------------------------------------------------------------------
@@ -38,10 +38,10 @@ class Iso7064Mod3736Test {
 
     @ParameterizedTest
     @ValueSource(strings = {
-            "NUMM-40-14-07-000001",
-            "NUMM-40-14-07-000099",
-            "NUMM-10-02-01-123456",
-            "NUMM-99-99-99-999999",
+            "NUMM-401407-CS-050-S40-000001",
+            "NUMM-401407-SS-025-150-000099",
+            "NUMM-100201-XX-000-STD-123456",
+            "NUMM-999999-PV-999-S80-999999",
     })
     void roundTrip_multipleBaseCodes(String base) {
         char check = Iso7064Mod3736.computeCheckChar(
@@ -118,11 +118,11 @@ class Iso7064Mod3736Test {
     @ParameterizedTest
     @ValueSource(strings = {
             "",                          // empty
-            "NUMM-40-14-07-0000",        // serial too short
-            "NUMM-40-14-07-0000000-A",   // serial too long
-            "OTHER-40-14-07-000042-A",   // wrong prefix
-            "NUMM-40-14-07-000042",      // missing check char
-            "numm-40-14-07-000042-a",    // lowercase (rejected before check)
+            "NUMM-401407-CS-050-S40-0042-A",    // serial too short
+            "NUMM-401407-CS-050-S40-0000042-A", // serial too long
+            "OTHER-401407-CS-050-S40-000042-A", // wrong prefix
+            "NUMM-401407-CS-050-S40-000042",    // missing check char
+            "NUMM-40-14-07-000042-A",           // obsolete structure
     })
     void malformedCodes_rejectBeforeCheckVerification(String code) {
         assertFalse(Iso7064Mod3736.validate(code),
@@ -137,7 +137,7 @@ class Iso7064Mod3736Test {
     void checkChars_areNotAllTheSame() {
         Set<Character> seen = new HashSet<>();
         for (int i = 1; i <= 36; i++) {
-            String base = String.format("NUMM-40-14-07-%06d", i);
+            String base = String.format("NUMM-401407-CS-050-S40-%06d", i);
             seen.add(Iso7064Mod3736.computeCheckChar(
                     Iso7064Mod3736.stripDelimiters(base)));
         }

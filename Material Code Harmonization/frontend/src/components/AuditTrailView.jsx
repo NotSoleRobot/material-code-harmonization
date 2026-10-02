@@ -110,7 +110,7 @@ export function AuditTrailView() {
         <div>
           <h1 className="page-title">Audit Trail</h1>
           <p className="page-subtitle">
-            Review recorded material, approval, and administration changes.
+            Review material ingestion, harmonization, approval, and publication events.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>

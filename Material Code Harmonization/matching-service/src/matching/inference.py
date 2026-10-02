@@ -24,8 +24,8 @@ from data_generation.schemas import CATEGORIES
 _MODELS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "models")
 _ARTIFACTS = None
 
-HIGH_CONF_THRESHOLD = 0.90
-MEDIUM_CONF_THRESHOLD = 0.70
+HIGH_CONF_THRESHOLD = 0.85
+MEDIUM_CONF_THRESHOLD = 0.60
 DUPLICATE_CLASSES = {"EXACT_DUPLICATE", "NEAR_DUPLICATE", "FUNCTIONALLY_EQUIVALENT"}
 MODEL_VERSION = os.getenv("MATCHING_MODEL_VERSION", "hybrid-rf-1.0")
 
@@ -99,7 +99,7 @@ def _open_domain_comparison(cat_a, cat_b, desc_a, spec_a, desc_b, spec_b, artifa
     )
     if cat_a != cat_b:
         score *= 0.65
-    if score >= 0.90:
+    if score >= HIGH_CONF_THRESHOLD:
         label = "EXACT_DUPLICATE"
     elif score >= 0.75:
         label = "NEAR_DUPLICATE"
@@ -269,9 +269,9 @@ def find_matches(material: dict, candidate_pool: list, top_k: int = 5,
         conflicts = result.get("critical_conflicts", [])
         relationship = result.get("predicted_relationship", "")
         duplicate = relationship in {"EXACT_DUPLICATE", "NEAR_DUPLICATE"}
-        if duplicate and score >= 0.90 and margin >= 0.10 and not conflicts:
+        if duplicate and score >= HIGH_CONF_THRESHOLD and margin >= 0.10 and not conflicts:
             result["recommended_route"] = "AUTO_CONFIRM"
-        elif score >= 0.70 or relationship in {"FUNCTIONALLY_EQUIVALENT", "VARIANT"}:
+        elif score >= MEDIUM_CONF_THRESHOLD or relationship in {"FUNCTIONALLY_EQUIVALENT", "VARIANT"}:
             result["recommended_route"] = "REVIEW_REQUIRED"
         else:
             result["recommended_route"] = "NOVEL"

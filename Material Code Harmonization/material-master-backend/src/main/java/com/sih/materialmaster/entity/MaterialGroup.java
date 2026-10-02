@@ -44,7 +44,7 @@ public class MaterialGroup {
     @Column(name = "code_serial")
     private Long codeSerial;
 
-    // Minted national code (NUMM-SS-FF-CC-NNNNNN-K) - NULL until human reviewer sign-off (fixes BUG-03)
+    // Minted national code (NUMM-CCCCCC-MM-DDD-RRR-NNNNNN-K); null until governed publication.
     @Column(name = "common_material_code", unique = true, length = 50)
     private String commonMaterialCode;
 

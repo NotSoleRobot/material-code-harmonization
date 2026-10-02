@@ -18,7 +18,7 @@ import java.util.*;
 /**
  * HarmonizationService implements the 4-step decision order (D1) specified in NUMM:
  * 1. Deterministic Attribute Signature Match (only when signature is complete)
- * 2. Policy-routed AI match (default auto-confirm >= 0.90 with a >= 0.10 candidate margin)
+ * 2. Policy-routed AI match (default auto-confirm >= 0.85 with a >= 0.10 candidate margin)
  * 3. Group Relation Classification (FUNCTIONALLY_EQUIVALENT / VARIANT)
  * 4. Novel Specification Registration (PROPOSED group with provisional reference)
  */
@@ -237,7 +237,7 @@ public class HarmonizationService {
         MatchCandidateResultDto topMatch = matches.get(0);
         String rel = topMatch.getPredictedRelationship() != null ? topMatch.getPredictedRelationship() : "NOT_A_MATCH";
         double score = topMatch.getMatchProbability() > 0 ? topMatch.getMatchProbability() : topMatch.getConfidence();
-        String tier = topMatch.getConfidenceTier() != null ? topMatch.getConfidenceTier() : (score >= 0.90 ? "HIGH" : (score >= 0.70 ? "MEDIUM" : "LOW"));
+        String tier = topMatch.getConfidenceTier() != null ? topMatch.getConfidenceTier() : (score >= 0.85 ? "HIGH" : (score >= 0.60 ? "MEDIUM" : "LOW"));
         double secondBestScore = matches.size() > 1 ? scoreOf(matches.get(1)) : 0.0;
         double margin = Math.max(0.0, score - secondBestScore);
         List<String> criticalConflicts = criticalConflicts(topMatch);
@@ -384,7 +384,8 @@ public class HarmonizationService {
                     target.getCategory().getCategoryId(), target.getMaterialId(), target.getDescription(),
                     target.getExtractedDimension(), target.getExtractedMaterialType());
             if (candidates.isEmpty()) {
-                candidates = materialRepository.findCandidatesAll(target.getMaterialId(), PageRequest.of(0, 50));
+                candidates = materialRepository.findCandidatesByCategory(
+                        target.getCategory().getCategoryId(), target.getMaterialId(), PageRequest.of(0, 50));
             }
         } else {
             candidates = materialRepository.findCandidatesAll(target.getMaterialId(), PageRequest.of(0, 50));
@@ -486,8 +487,8 @@ public class HarmonizationService {
                                   List<String> criticalConflicts, boolean duplicateMerge) {
         MatchingPolicy policy = target.getCategory() == null ? null
                 : matchingPolicyRepository.findByCategory_CategoryId(target.getCategory().getCategoryId()).orElse(null);
-        double autoThreshold = policy != null ? policy.getAutoConfirmThreshold().doubleValue() : 0.90;
-        double reviewThreshold = policy != null ? policy.getReviewThreshold().doubleValue() : 0.70;
+        double autoThreshold = policy != null ? policy.getAutoConfirmThreshold().doubleValue() : 0.85;
+        double reviewThreshold = policy != null ? policy.getReviewThreshold().doubleValue() : 0.60;
         double minimumMargin = policy != null ? policy.getMinimumCandidateMargin().doubleValue() : 0.10;
         boolean autoEnabled = policy == null || policy.isAutoConfirmEnabled();
 

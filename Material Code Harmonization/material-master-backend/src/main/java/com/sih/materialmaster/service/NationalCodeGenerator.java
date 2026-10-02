@@ -13,6 +13,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -122,16 +123,22 @@ public class NationalCodeGenerator {
     private String extractMaterialKey(Map<String, Object> attrs) {
         if (attrs == null || attrs.isEmpty()) return "XX";
         String m = getAttrString(attrs, "material_type", "material", "grade", "extracted_material_type");
-        if (m == null) return "CS";
-        m = m.toUpperCase();
-        if (m.contains("STAINLESS") || m.contains("SS") || m.contains("304") || m.contains("316")) return "SS";
-        if (m.contains("CARBON") || m.contains("CS") || m.contains("A106") || m.contains("A53")) return "CS";
-        if (m.contains("ALLOY") || m.contains("AS")) return "AS";
-        if (m.contains("CAST IRON") || m.contains("CI")) return "CI";
-        if (m.contains("BRASS") || m.contains("BRONZE") || m.contains("BR")) return "BR";
-        if (m.contains("PVC") || m.contains("CPVC") || m.contains("UPVC") || m.contains("PLASTIC")) return "PV";
-        if (m.contains("ALUM") || m.contains("AL")) return "AL";
-        String clean = m.replaceAll("[^A-Z0-9]", "");
+        if (m == null) return "XX";
+        String upper = m.toUpperCase(Locale.ROOT).trim();
+        String clean = upper.replaceAll("[^A-Z0-9]", "");
+        if (clean.equals("SS") || clean.startsWith("SS304") || clean.startsWith("SS316")
+                || clean.contains("STAINLESSSTEEL")) return "SS";
+        if (clean.equals("CS") || clean.contains("CARBONSTEEL")
+                || clean.startsWith("A106") || clean.startsWith("A53")) return "CS";
+        if (clean.equals("MS") || clean.contains("MILDSTEEL")) return "MS";
+        if (clean.equals("AS") || clean.contains("ALLOYSTEEL")) return "AS";
+        if (clean.equals("CI") || clean.contains("CASTIRON")) return "CI";
+        if (clean.equals("GI") || clean.contains("GALVANIZEDIRON") || clean.contains("GALVANISEDIRON")) return "GI";
+        if (clean.equals("BR") || clean.contains("BRASS") || clean.contains("BRONZE")) return "BR";
+        if (clean.equals("PV") || clean.contains("PVC") || clean.contains("CPVC")
+                || clean.contains("UPVC") || clean.contains("PLASTIC") || clean.contains("HDPE")) return "PV";
+        if (clean.equals("AL") || clean.contains("ALUMINIUM") || clean.contains("ALUMINUM")) return "AL";
+        if (clean.equals("CU") || clean.contains("COPPER")) return "CU";
         return clean.length() >= 2 ? clean.substring(0, 2) : (clean.length() == 1 ? clean + "X" : "XX");
     }
 
@@ -156,18 +163,21 @@ public class NationalCodeGenerator {
     private String extractRatingKey(Map<String, Object> attrs) {
         if (attrs == null || attrs.isEmpty()) return "STD";
         String r = getAttrString(attrs, "schedule", "pressure_class", "rating", "voltage_grade");
-        if (r == null) return "S40";
-        r = r.toUpperCase().replaceAll("\\s+", "");
-        if (r.contains("40") || r.contains("SCH40")) return "S40";
-        if (r.contains("80") || r.contains("SCH80")) return "S80";
-        if (r.contains("160")) return "160";
-        if (r.contains("150")) return "150";
-        if (r.contains("300")) return "300";
-        if (r.contains("600")) return "600";
-        if (r.contains("800")) return "800";
-        if (r.contains("900")) return "900";
-        if (r.contains("XS")) return "SXS";
-        String clean = r.replaceAll("[^A-Z0-9]", "");
+        if (r == null) return "STD";
+        String clean = r.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9#]", "");
+        java.util.regex.Matcher schedule = java.util.regex.Pattern
+                .compile("(?:SCH|SCHEDULE|^S)(40|80|160)$").matcher(clean);
+        if (schedule.find()) {
+            return "160".equals(schedule.group(1)) ? "160" : "S" + schedule.group(1);
+        }
+        if (clean.equals("40")) return "S40";
+        if (clean.equals("80")) return "S80";
+        if (clean.equals("160")) return "160";
+        java.util.regex.Matcher pressureClass = java.util.regex.Pattern
+                .compile("(?:CLASS|CL|LB|#)?(150|300|600|800|900)$").matcher(clean);
+        if (pressureClass.find()) return pressureClass.group(1);
+        if (clean.equals("XS") || clean.equals("SCHXS")) return "SXS";
+        clean = clean.replace("#", "");
         return clean.length() >= 3 ? clean.substring(0, 3) : (clean + "STD").substring(0, 3);
     }
 

@@ -44,7 +44,12 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
                                            @Param("dimension") String dimension,
                                            @Param("materialType") String materialType);
 
-    @Query("SELECT m FROM Material m WHERE m.materialId != :excludeId ORDER BY m.materialId DESC")
+    @Query("SELECT m FROM Material m WHERE m.category.categoryId = :categoryId AND m.materialId != :excludeId ORDER BY m.materialId ASC")
+    List<Material> findCandidatesByCategory(@Param("categoryId") Long categoryId,
+                                            @Param("excludeId") Long excludeId,
+                                            Pageable pageable);
+
+    @Query("SELECT m FROM Material m WHERE m.materialId != :excludeId ORDER BY m.materialId ASC")
     List<Material> findCandidatesAll(@Param("excludeId") Long excludeId, Pageable pageable);
 
     @Query(

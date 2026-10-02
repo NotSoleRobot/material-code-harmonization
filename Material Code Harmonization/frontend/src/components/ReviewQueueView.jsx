@@ -93,8 +93,8 @@ export function ReviewQueueView() {
 
       const score = m.confidenceScore ?? 0;
       let tier = "LOW";
-      if (score >= 0.90) tier = "HIGH";
-      else if (score >= 0.70) tier = "MEDIUM";
+      if (score >= 0.85) tier = "HIGH";
+      else if (score >= 0.60) tier = "MEDIUM";
 
       const matchTier = tierFilter === "ALL" || tier === tierFilter;
       const matchCpse = cpseFilter === "ALL" || (m.cpseName && m.cpseName.toUpperCase() === cpseFilter);
@@ -103,7 +103,7 @@ export function ReviewQueueView() {
     });
   }, [mappings, search, tierFilter, cpseFilter]);
 
-  const highTierCount = mappings.filter((m) => (m.confidenceScore ?? 0) >= 0.90).length;
+  const highTierCount = mappings.filter((m) => (m.confidenceScore ?? 0) >= 0.85).length;
   const cpseList = Array.from(new Set(mappings.map((m) => m.cpseName).filter(Boolean)));
 
   return (
@@ -223,9 +223,9 @@ export function ReviewQueueView() {
             <div style={{ display: "flex", gap: "0.3rem" }}>
               {[
                 { key: "ALL", label: "All Tiers" },
-                { key: "HIGH", label: "High (≥90%)" },
-                { key: "MEDIUM", label: "Medium (70-90%)" },
-                { key: "LOW", label: "Low (<70%)" },
+                { key: "HIGH", label: "High (≥85%)" },
+                { key: "MEDIUM", label: "Medium (60-85%)" },
+                { key: "LOW", label: "Low (<60%)" },
               ].map((t) => (
                 <button
                   key={t.key}

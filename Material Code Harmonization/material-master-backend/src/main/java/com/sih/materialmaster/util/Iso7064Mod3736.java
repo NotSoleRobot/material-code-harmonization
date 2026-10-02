@@ -22,10 +22,10 @@ public final class Iso7064Mod3736 {
 
     /**
      * Expected format for a complete NUMM code including check character.
-     * Pattern: {@code NUMM-DD-DD-DD-DDDDDD-C} where D is a digit and C is a base-36 char.
+     * Pattern: {@code NUMM-CCCCCC-MM-DDD-RRR-NNNNNN-K}.
      */
     private static final Pattern CANONICAL =
-            Pattern.compile("^(NUMM-\\d{2}-\\d{2}-\\d{2}-\\d{6}-[0-9A-Z]|NUMM-[0-9A-Z]{4,8}(-[0-9A-Z]{2,6})+\\-\\d{6}-[0-9A-Z])$");
+            Pattern.compile("^NUMM-\\d{6}-[0-9A-Z]{2}-[0-9A-Z]{3}-[0-9A-Z]{3}-\\d{6}-[0-9A-Z]$");
 
     private Iso7064Mod3736() {}
 
@@ -50,7 +50,7 @@ public final class Iso7064Mod3736 {
 
     /**
      * Strips hyphens from a code body before feeding to the algorithm.
-     * e.g. {@code "NUMM-40-14-07-000042"} → {@code "NUMM4014070000042"}
+     * e.g. {@code "NUMM-401407-CS-050-S40-000042"} becomes one base-36 body.
      */
     public static String stripDelimiters(String s) {
         return s.replace("-", "").replace(" ", "").toUpperCase();
@@ -87,7 +87,7 @@ public final class Iso7064Mod3736 {
      *
      * <p>Performs a format check first (fixes B-16), then verifies the check character.</p>
      *
-     * @param fullCode Complete code, e.g. {@code "NUMM-40-14-07-000042-K"}
+     * @param fullCode Complete code, e.g. {@code "NUMM-401407-CS-050-S40-000042-K"}
      * @return {@code true} if the code has the correct format and check character.
      */
     public static boolean validate(String fullCode) {
