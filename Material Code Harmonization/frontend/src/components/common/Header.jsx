@@ -1,9 +1,9 @@
 import React from "react";
 import { useAuth } from "../../context/useAuth";
 import { useTranslation } from "react-i18next";
-import { LogOut, Building2, User as UserIcon, ShieldAlert } from "lucide-react";
+import { LogOut, Building2, User as UserIcon, Database, Menu } from "lucide-react";
 
-export function Header() {
+export function Header({ onMenuToggle }) {
   const { user, logout } = useAuth();
   const { t } = useTranslation();
 
@@ -22,6 +22,14 @@ export function Header() {
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>
+        <button
+          type="button"
+          className="btn btn-ghost btn-icon mobile-menu-button"
+          onClick={onMenuToggle}
+          aria-label="Open navigation"
+        >
+          <Menu size={19} aria-hidden="true" />
+        </button>
         <div className="header-org-chip">
           {user?.cpse ? (
             <>
@@ -31,9 +39,9 @@ export function Header() {
             </>
           ) : (
             <>
-              <ShieldAlert size={14} className="text-warning" aria-hidden="true" />
-              <span className="org-name">Central Governance Body</span>
-              <span className="org-sector text-muted">(MoPNG / National Committee)</span>
+              <Database size={14} className="text-accent" aria-hidden="true" />
+              <span className="org-name">Central Catalog</span>
+              <span className="org-sector text-muted">Administration workspace</span>
             </>
           )}
         </div>

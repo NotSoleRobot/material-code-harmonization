@@ -9,7 +9,7 @@ body {
   background: var(--canvas);
   font-family: var(--font-ui);
   font-size: var(--text-body);
-  line-height: 1.45;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 button, input, select, textarea { font: inherit; }
@@ -20,9 +20,9 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 :focus-visible { outline: none; box-shadow: var(--focus); }
 h1, h2, h3, h4, p { margin-top: 0; }
-h1 { font-size: var(--text-lg); line-height: 1.25; }
-h2 { font-size: var(--text-md); }
-h3, h4 { font-size: var(--text-body); }
+h1 { font-size: var(--text-xl); line-height: 1.25; letter-spacing: -.01em; }
+h2 { font-size: 18px; line-height: 1.35; }
+h3, h4 { font-size: var(--text-md); }
 code, pre, .font-mono, .text-mono { font-family: var(--font-mono); }
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;

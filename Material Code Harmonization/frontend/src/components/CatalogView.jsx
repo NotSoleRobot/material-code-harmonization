@@ -186,7 +186,7 @@ export function CatalogView() {
                       onClick={() => handleStatusFilter(s)}
                       id={`tab-status-${s.toLowerCase()}`}
                     >
-                      {s === "ACTIVE" ? "Authoritative Master Catalog" : s === "PROPOSED" ? "Harmonized Provisional Pool" : "Superseded History"}
+                      {s === "ACTIVE" ? "Published" : s === "PROPOSED" ? "Provisional" : "Superseded"}
                     </button>
                   ))}
                 </div>
@@ -197,13 +197,13 @@ export function CatalogView() {
                     className={`btn btn-sm ${viewMode === "canonical" ? "btn-primary" : "btn-outline"}`}
                     onClick={() => handleViewModeToggle("canonical")}
                   >
-                    <BookOpen size={13} aria-hidden="true" /> Canonical
+                    <BookOpen size={13} aria-hidden="true" /> Materials
                   </button>
                   <button
                     className={`btn btn-sm ${viewMode === "crossref" ? "btn-primary" : "btn-outline"}`}
                     onClick={() => handleViewModeToggle("crossref")}
                   >
-                    <FileSpreadsheet size={13} aria-hidden="true" /> Cross-Reference
+                    <FileSpreadsheet size={13} aria-hidden="true" /> Source records
                   </button>
                 </div>
             </>

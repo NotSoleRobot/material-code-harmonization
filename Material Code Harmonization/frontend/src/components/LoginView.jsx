@@ -86,7 +86,7 @@ export function LoginView() {
               <span>National Unified Material Master</span>
             </div>
           </div>
-          <div className="login-masthead-meta">Enterprise Material Governance</div>
+          <div className="login-masthead-meta">Material catalog workspace</div>
         </div>
       </header>
 
@@ -95,11 +95,11 @@ export function LoginView() {
           <div className="login-panel-heading">
             <div className="brand-badge-lg"><Lock size={16} aria-hidden="true" /></div>
             <div>
-              <span className="login-panel-kicker">Administrative Authentication</span>
-              <h2 id="login-title">Sign in to NUMM Portal</h2>
+              <span className="login-panel-kicker">Account access</span>
+              <h2 id="login-title">Sign in to NUMM</h2>
             </div>
           </div>
-          <p className="login-panel-sub">Enter your enterprise credentials.</p>
+          <p className="login-panel-sub">Enter your account email and password.</p>
 
           {error && (
             <div className="login-alert" role="alert" aria-live="assertive">
@@ -180,7 +180,7 @@ export function LoginView() {
           {demoAccounts.length > 0 && <div className="demo-profiles-section">
             <div className="demo-divider">
               <span>
-                Instant Demonstration Access
+                Available profiles
               </span>
             </div>
 
@@ -212,8 +212,8 @@ export function LoginView() {
       </main>
 
       <footer className="login-footer">
-        <span>National Unified Material Master · SIH 2026</span>
-        <span>Secure · Auditable · Interoperable</span>
+        <span>National Unified Material Master</span>
+        <span>Material catalog and review workspace</span>
       </footer>
     </div>
   );

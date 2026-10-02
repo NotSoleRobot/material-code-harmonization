@@ -27,7 +27,7 @@ const ICON_MAP = {
   Users,
 };
 
-export function Sidebar({ pendingCount = 0 }) {
+export function Sidebar({ pendingCount = 0, mobileOpen = false, onNavigate }) {
   const { user } = useAuth();
   const { t } = useTranslation();
   const userRole = user?.role?.toUpperCase();
@@ -37,7 +37,7 @@ export function Sidebar({ pendingCount = 0 }) {
   );
 
   return (
-    <aside className="app-sidebar" role="navigation" aria-label="Main Navigation">
+    <aside className={`app-sidebar ${mobileOpen ? "mobile-open" : ""}`} role="navigation" aria-label="Main Navigation">
       {/* Brand & Wordmark */}
       <div className="sidebar-brand">
         <div className="brand-logo-badge">
@@ -57,6 +57,7 @@ export function Sidebar({ pendingCount = 0 }) {
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={onNavigate}
               className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
             >
               <IconComponent size={16} aria-hidden="true" style={{ color: "var(--ink-muted)" }} />
@@ -73,9 +74,7 @@ export function Sidebar({ pendingCount = 0 }) {
 
       {/* Sidebar Footer */}
       <div className="sidebar-footer">
-        <div style={{ fontSize: "11px", color: "var(--ink-muted)" }}>
-          MoPNG
-        </div>
+        <div>Material master workspace</div>
       </div>
     </aside>
   );

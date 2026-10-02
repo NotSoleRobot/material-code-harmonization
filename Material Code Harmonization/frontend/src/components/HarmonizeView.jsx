@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import {
   Check, AlertTriangle, XCircle,
   Play, RefreshCw, CheckCircle2,
-  Info, Cpu, FileText
+  Cpu, FileText
 } from "lucide-react";
 import { api } from "../services/api";
 import { ConfidenceTierBadge } from "./common/ConfidenceTierBadge";
@@ -137,27 +137,9 @@ export function HarmonizeView() {
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
       {/* Header */}
       <div className="page-header">
-        <h1 className="page-title">Material Specification Comparison</h1>
-        <p className="page-subtitle">
-          Interactive pairwise ML comparison engine for CPSE procurement officers to verify attribute equivalence and cross-enterprise interchangeability.
-        </p>
-      </div>
-
-      {/* Context Banner */}
-      <div
-        style={{
-          display: "flex",
-          gap: "0.75rem",
-          alignItems: "flex-start",
-          background: "var(--info-bg)",
-          border: "1px solid var(--info-border)",
-          borderRadius: "var(--radius-md)",
-          padding: "0.9rem 1.15rem",
-        }}
-      >
-        <Info size={16} color="var(--info)" style={{ flexShrink: 0, marginTop: "2px" }} />
-        <div style={{ fontSize: "0.825rem", color: "var(--info)", lineHeight: 1.5 }}>
-          <strong>Pairwise Matching Architecture:</strong> The Python ML engine evaluates text n-grams (TF-IDF), token cosine similarity, and regex-extracted technical attributes (nominal diameter, pressure rating, schedule, material grade) to produce a composite Random Forest confidence score.
+        <div>
+          <h1 className="page-title">Material Comparison</h1>
+          <p className="page-subtitle">Compare two material descriptions and review their technical similarities and differences.</p>
         </div>
       </div>
 
@@ -165,7 +147,7 @@ export function HarmonizeView() {
       <div className="card">
         <div className="card-header" style={{ padding: "0.75rem 1.25rem" }}>
           <div className="card-title" style={{ fontSize: "0.85rem" }}>
-            <Cpu size={15} color="var(--accent)" /> Load Tested CPSE Specification Benchmarks:
+            Example comparisons
           </div>
         </div>
         <div className="card-body" style={{ padding: "0.85rem 1.25rem", display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
@@ -190,13 +172,13 @@ export function HarmonizeView() {
       </div>
 
       {/* Inputs (Side by Side) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
+      <div className="material-input-grid">
         {/* Specification A */}
         <div className="card">
-          <div className="card-header" style={{ borderBottom: "2px solid var(--accent)", padding: "0.75rem 1.25rem" }}>
+          <div className="card-header">
             <div className="card-title">
               <FileText size={16} color="var(--accent)" />
-              Material Specification A (e.g. ONGC / BHEL)
+              Material A
             </div>
           </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
@@ -236,10 +218,10 @@ export function HarmonizeView() {
 
         {/* Specification B */}
         <div className="card">
-          <div className="card-header" style={{ borderBottom: "2px solid var(--info)", padding: "0.75rem 1.25rem" }}>
+          <div className="card-header">
             <div className="card-title">
               <FileText size={16} color="var(--info)" />
-              Material Specification B (e.g. IOCL / GAIL)
+              Material B
             </div>
           </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
@@ -289,12 +271,12 @@ export function HarmonizeView() {
           {loading ? (
             <>
               <RefreshCw size={16} />
-              Executing ML Compatibility Pipeline...
+              Comparing materials…
             </>
           ) : (
             <>
               <Play size={16} />
-              Run Specification Compatibility Check
+              Compare materials
             </>
           )}
         </button>
@@ -304,7 +286,7 @@ export function HarmonizeView() {
 
       {/* Results Section */}
       {result && (
-        <div className="card" style={{ borderTop: "3px solid var(--accent)" }}>
+        <div className="card">
           <div
             className="card-header"
             style={{
@@ -317,7 +299,7 @@ export function HarmonizeView() {
           >
             <div className="card-title">
               <Cpu size={16} color="var(--accent)" />
-              Match Assessment & Explanation
+              Comparison result
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
               {relBadge(result.predicted_relationship || result.relationship)}

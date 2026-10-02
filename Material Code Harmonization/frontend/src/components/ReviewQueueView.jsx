@@ -111,9 +111,9 @@ export function ReviewQueueView() {
       {/* Page Header */}
       <div className="page-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
         <div>
-          <h1 className="page-title">Harmonization Review Queue</h1>
+          <h1 className="page-title">Review Queue</h1>
           <p className="page-subtitle">
-            Human-in-the-loop validation: review AI-suggested mappings, inspect attribute parity, and confirm canonical master codes.
+            Review material matches that need a decision before they can move forward.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>

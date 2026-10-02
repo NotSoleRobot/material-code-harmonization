@@ -220,13 +220,13 @@ export function ReviewDetailView() {
       )}
 
       {/* Main Side-by-Side Comparison Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
+      <div className="review-comparison-grid">
         {/* Left: Raw Ingested CPSE Item */}
         <div className="card">
-          <div className="card-header" style={{ borderBottom: "2px solid var(--warning)", padding: "0.85rem 1.25rem" }}>
+          <div className="card-header">
             <div className="card-title">
               <Building2 size={16} color="var(--warning)" />
-              Raw CPSE Item — {mapping.cpseName}
+              Submitted material — {mapping.cpseName}
             </div>
           </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
@@ -257,10 +257,10 @@ export function ReviewDetailView() {
 
         {/* Right: Target Canonical NUMM Record */}
         <div className="card">
-          <div className="card-header" style={{ borderBottom: "2px solid var(--accent)", padding: "0.85rem 1.25rem" }}>
+          <div className="card-header">
             <div className="card-title">
               <Layers size={16} color="var(--accent)" />
-              Proposed Authoritative NUMM Master
+              Proposed catalog record
             </div>
           </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
@@ -360,7 +360,7 @@ export function ReviewDetailView() {
         <div>
           <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-primary)" }}>Governance Decisions</div>
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            Reviewer sign-offs commit to statutory immutable audit log with cryptographic chaining.
+            Decisions are recorded in the material audit trail.
           </div>
         </div>
 

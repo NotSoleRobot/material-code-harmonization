@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from "react";
+import React, { lazy, Suspense, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { queryClient } from "./queryClient";
@@ -29,6 +29,7 @@ import "./i18n";
 
 function AppLayout({ children }) {
   const { user } = useAuth();
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const canReview = user && ["ADMIN", "REVIEWER", "SENIOR_REVIEWER"].includes(user.role);
 
   const { data: pendingMappings } = useQuery({
@@ -42,9 +43,21 @@ function AppLayout({ children }) {
 
   return (
     <div className="app-container">
-      <Sidebar pendingCount={pendingCount} />
+      <Sidebar
+        pendingCount={pendingCount}
+        mobileOpen={mobileNavigationOpen}
+        onNavigate={() => setMobileNavigationOpen(false)}
+      />
+      {mobileNavigationOpen && (
+        <button
+          type="button"
+          className="sidebar-scrim"
+          aria-label="Close navigation"
+          onClick={() => setMobileNavigationOpen(false)}
+        />
+      )}
       <div className="app-main-wrapper">
-        <Header pendingCount={pendingCount} />
+        <Header onMenuToggle={() => setMobileNavigationOpen((open) => !open)} />
         <main id="main-content" className="main-content" tabIndex={-1}>
           {children}
         </main>

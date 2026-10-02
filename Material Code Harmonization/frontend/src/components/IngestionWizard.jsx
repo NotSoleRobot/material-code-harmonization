@@ -292,14 +292,14 @@ export function IngestionWizard() {
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
       {/* Header */}
       <div className="page-header">
-        <h1 className="page-title">Enterprise Material Ingestion</h1>
-        <p className="page-subtitle">
-          Submit legacy CPSE plant material masters for automated schema alignment, TF-IDF feature extraction, and AI candidate matching.
-        </p>
+        <div>
+          <h1 className="page-title">Material Ingestion</h1>
+          <p className="page-subtitle">Upload a material file, confirm its columns, validate the records, and submit it for harmonization.</p>
+        </div>
       </div>
 
       <div className="card">
-        <div className="card-body" style={{ padding: "1.75rem 2rem" }}>
+        <div className="card-body">
           {/* Step Progress */}
           <div className="wizard-progress">
             {STEPS.map((s) => {
@@ -348,7 +348,7 @@ export function IngestionWizard() {
                   <Building2 size={16} color="var(--accent)" />
                   <div>
                     <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, display: "block" }}>
-                      Submitting CPSE Enterprise:
+                      Submitting organization
                     </span>
                     <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--text-primary)" }}>
                       {CPSE_LIST.find((c) => c.code === selectedCpse)?.name || selectedCpse}
@@ -357,7 +357,7 @@ export function IngestionWizard() {
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>Change Enterprise:</span>
+                  <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>Organization</span>
                   <select
                     className="form-select"
                     style={{ fontSize: "0.8rem", padding: "0.3rem 0.6rem", width: "160px" }}
@@ -380,19 +380,19 @@ export function IngestionWizard() {
                 onClick={() => fileInputRef.current?.click()}
               >
                 <div className="drop-zone-icon"><UploadCloud size={16} strokeWidth={1.5} /></div>
-                <div className="drop-zone-title">Drag & drop your SAP / ERP inventory CSV here</div>
-                <div className="drop-zone-sub">or click to browse local files (CSV, TSV, TXT)</div>
+                <div className="drop-zone-title">Drop a material file here</div>
+                <div className="drop-zone-sub">or click to select a CSV, TSV, or TXT file</div>
                 <input ref={fileInputRef} type="file" accept=".csv,.tsv,.txt" style={{ display: "none" }} onChange={handleFileInput} />
               </div>
 
               {/* Sample Benchmarks */}
               <div style={{ marginTop: "1.5rem" }}>
                 <div style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>
-                  Or load a pre-configured CPSE ERP export benchmark:
+                  Sample file
                 </div>
                 <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                   <button className="btn btn-outline btn-sm" onClick={() => loadSample("ONGC_SAP")}>
-                    <Download size={13} /> ONGC SAP ECC Export (5 Items)
+                    <Download size={13} /> Load sample materials (5 rows)
                   </button>
                 </div>
               </div>
@@ -416,7 +416,7 @@ export function IngestionWizard() {
               >
                 <Info size={16} color="var(--info)" style={{ flexShrink: 0, marginTop: "2px" }} />
                 <div style={{ fontSize: "0.825rem", color: "var(--info)", lineHeight: 1.5 }}>
-                  <strong>Auto-Mapping:</strong> Map your file columns to the canonical NUMM fields. Missing CPSE columns are automatically populated with <strong>{selectedCpse}</strong>.
+                  Match each file column to the corresponding material field. The organization field will use <strong>{selectedCpse}</strong> when it is not included in the file.
                 </div>
               </div>
 

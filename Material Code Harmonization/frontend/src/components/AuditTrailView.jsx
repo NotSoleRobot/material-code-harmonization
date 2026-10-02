@@ -108,20 +108,20 @@ export function AuditTrailView() {
       {/* Header */}
       <div className="page-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
         <div>
-          <h1 className="page-title">Immutable Audit Trail</h1>
+          <h1 className="page-title">Audit Trail</h1>
           <p className="page-subtitle">
-            Tamper-evident statutory audit trail recording every human approval, rejection, state modification, and admin override with chained SHA-256 cryptographic hashes.
+            Review recorded material, approval, and administration changes.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button className="btn btn-outline btn-sm" onClick={handleVerifyChain} title="Verify SHA-256 Hash Chain">
-            <ShieldCheck size={14} color="var(--success)" /> Verify Cryptographic Integrity
+            <ShieldCheck size={14} color="var(--success)" /> Verify audit chain
           </button>
           <button className="btn btn-ghost btn-sm" onClick={loadLogs}>
-            <RefreshCw size={14} /> Refresh Logs
+            <RefreshCw size={14} /> Refresh
           </button>
           <button className="btn btn-primary btn-sm" onClick={handleExportCsv} disabled={filteredLogs.length === 0}>
-            <Download size={14} /> Export Audit Log (CSV)
+            <Download size={14} /> Export CSV
           </button>
         </div>
       </div>
@@ -133,7 +133,7 @@ export function AuditTrailView() {
             <Search size={16} color="var(--text-dim)" style={{ flexShrink: 0 }} />
             <input
               type="text"
-              placeholder="Search audit trail by actor, entity ID, action, justification, or audit ID..."
+              placeholder="Search by user, record, action, or reason..."
               className="form-input"
               style={{ border: "none", background: "transparent", padding: 0, boxShadow: "none" }}
               value={search}

@@ -1,23 +1,26 @@
 :root {
-  --ink: #16202C;
-  --ink-muted: #5A6B7D;
+  --ink: #1F2933;
+  --ink-muted: #65717E;
   --surface: #FFFFFF;
-  --canvas: #F4F6F8;
-  --line: #D8DEE5;
-  --accent: #0B4F6C;
-  --ok: #1C7A4A;
-  --warn: #9A6400;
-  --danger: #A62B2B;
-  --info: #24567A;
+  --canvas: #F6F7F9;
+  --surface-muted: #F0F2F4;
+  --line: #DDE2E7;
+  --line-strong: #C5CDD5;
+  --accent: #315B78;
+  --accent-hover: #274A62;
+  --ok: #347054;
+  --warn: #8A6523;
+  --danger: #A04444;
+  --info: #486D88;
 
   --font-ui: "IBM Plex Sans", Arial, sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
   --text-xs: 12px;
   --text-sm: 13px;
-  --text-body: 14px;
+  --text-body: 15px;
   --text-md: 16px;
   --text-lg: 20px;
-  --text-xl: 26px;
+  --text-xl: 24px;
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
@@ -28,13 +31,13 @@
   --space-4: 16px;
   --space-6: 24px;
   --space-8: 32px;
-  --radius: 3px;
-  --shadow: 0 1px 2px rgba(22, 32, 44, .08);
+  --radius: 6px;
+  --shadow: 0 1px 2px rgba(31, 41, 51, .06);
   --overlay: color-mix(in srgb, var(--ink) 62%, transparent);
   --focus: 0 0 0 2px var(--accent);
-  --sidebar-width: 240px;
-  --header-height: 52px;
-  --content-width: 1180px;
+  --sidebar-width: 232px;
+  --header-height: 60px;
+  --content-width: 1320px;
   --transition: background-color 120ms;
 
   /* Compatibility aliases while screens converge on the shared vocabulary. */
@@ -45,6 +48,7 @@
   --bg-primary: var(--surface);
   --bg-secondary: var(--canvas);
   --bg-subtle: var(--canvas);
+  --bg-surface: var(--surface);
   --border: var(--line);
   --border-light: var(--line);
   --success: var(--ok);

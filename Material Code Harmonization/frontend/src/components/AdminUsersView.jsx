@@ -103,9 +103,9 @@ export function AdminUsersView() {
       {/* Header */}
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
         <div>
-          <h1 className="page-title">User Management & CPSE Governance</h1>
+          <h1 className="page-title">Users</h1>
           <p className="page-subtitle">
-            Provision CPSE operators, assign master reviewers to UNSPSC categories, and configure role-based access control.
+            Add users, assign roles, and manage their organization access.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -113,7 +113,7 @@ export function AdminUsersView() {
             <RefreshCw size={14} /> Refresh
           </button>
           <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)}>
-            <UserPlus size={14} /> Provision New User
+            <UserPlus size={14} /> Add user
           </button>
         </div>
       </div>
