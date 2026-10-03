@@ -153,6 +153,33 @@
 .result-count { font: var(--weight-semibold) var(--text-xl)/1.2 var(--font-mono); }
 .material-input-grid, .review-comparison-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .category-chips-grid { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.category-stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+
+.category-stat-badge .cat-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.category-stat-badge .cat-count {
+  min-width: 1.45rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+}
 .category-assignment { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin: 0; padding: var(--space-3); border: 1px solid var(--line); }
 .category-assignment legend { padding: 0 var(--space-1); }
 .checkbox-row { display: flex; align-items: center; gap: var(--space-2); min-height: 30px; padding: var(--space-1) var(--space-2); background: var(--canvas); border: 1px solid var(--line); }
