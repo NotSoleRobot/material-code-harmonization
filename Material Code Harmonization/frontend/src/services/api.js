@@ -311,6 +311,9 @@ export const api = {
     return request(`${API_BASE}/harmonization/compare`, {
       method: "POST",
       body: JSON.stringify({ material_a: materialA, material_b: materialB }),
+      // The hosted matching worker may be resuming from Render's free-tier
+      // sleep. Keep the comparison request alive while the backend retries.
+      timeoutMs: 540000,
     });
   },
 

@@ -285,7 +285,7 @@ export function ReviewDetailView() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
               <div style={{ background: "var(--bg-subtle)", padding: "0.5rem", borderRadius: "var(--radius-xs)" }}>
                 <div style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>UNSPSC Commodity</div>
-                <div style={{ fontWeight: 600, fontSize: "0.8rem", marginTop: "2px" }}>{mapping.commodityName || "Pipes & Tubulars"}</div>
+                <div style={{ fontWeight: 600, fontSize: "0.8rem", marginTop: "2px" }}>{mapping.categoryName || "Not recorded"}</div>
               </div>
               <div style={{ background: "var(--bg-subtle)", padding: "0.5rem", borderRadius: "var(--radius-xs)" }}>
                 <div style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>Relationship Type</div>

@@ -3,12 +3,21 @@ package com.sih.materialmaster;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sih.materialmaster.entity.AuditTrail;
+import com.sih.materialmaster.entity.AuditChainHead;
 import com.sih.materialmaster.entity.Cpse;
 import com.sih.materialmaster.entity.Material;
+import com.sih.materialmaster.entity.MaterialCategory;
+import com.sih.materialmaster.entity.MaterialGroup;
+import com.sih.materialmaster.entity.MaterialMapping;
 import com.sih.materialmaster.entity.User;
 import com.sih.materialmaster.repository.AuditTrailRepository;
+import com.sih.materialmaster.repository.AuditChainHeadRepository;
 import com.sih.materialmaster.repository.CpseRepository;
 import com.sih.materialmaster.repository.MaterialRepository;
+import com.sih.materialmaster.repository.MaterialCategoryRepository;
+import com.sih.materialmaster.repository.MaterialGroupRepository;
+import com.sih.materialmaster.repository.MaterialMappingRepository;
+import com.sih.materialmaster.repository.MatchingFeedbackRepository;
 import com.sih.materialmaster.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,12 +55,22 @@ class HostedRoleEndpointsIntegrationTest {
     @Autowired CpseRepository cpseRepository;
     @Autowired UserRepository userRepository;
     @Autowired MaterialRepository materialRepository;
+    @Autowired MaterialCategoryRepository categoryRepository;
+    @Autowired MaterialGroupRepository groupRepository;
+    @Autowired MaterialMappingRepository mappingRepository;
+    @Autowired MatchingFeedbackRepository matchingFeedbackRepository;
     @Autowired AuditTrailRepository auditTrailRepository;
+    @Autowired AuditChainHeadRepository auditChainHeadRepository;
 
     @BeforeEach
     void seedDetachedRelationshipFixtures() {
         auditTrailRepository.deleteAll();
+        auditChainHeadRepository.deleteAll();
+        matchingFeedbackRepository.deleteAll();
+        mappingRepository.deleteAll();
+        groupRepository.deleteAll();
         materialRepository.deleteAll();
+        categoryRepository.deleteAll();
         userRepository.deleteAll();
         cpseRepository.deleteAll();
 
@@ -72,7 +91,29 @@ class HostedRoleEndpointsIntegrationTest {
         material.setSpecification("ASTM A106 GR B");
         material.setUnitOfMeasure("M");
         material.setNominalPrice(new BigDecimal("1250.00"));
-        materialRepository.save(material);
+        MaterialCategory category = new MaterialCategory();
+        category.setName("PIPE");
+        category.setLevel(3);
+        category = categoryRepository.save(category);
+        material.setCategory(category);
+        material = materialRepository.save(material);
+
+        MaterialGroup group = new MaterialGroup();
+        group.setProvisionalRef("PROV-TEST-000001");
+        group.setStandardizedDescription("CARBON STEEL PIPE DN50 SCH40");
+        group.setStandardizedSpecification("ASTM A106 GR B");
+        group.setStandardizedUom("M");
+        group.setCategory(category);
+        group = groupRepository.save(group);
+
+        MaterialMapping mapping = new MaterialMapping();
+        mapping.setMaterial(material);
+        mapping.setGroup(group);
+        mapping.setConfidenceScore(new BigDecimal("0.7500"));
+        mapping.setConfidenceTier("MEDIUM");
+        mapping.setStatus("PENDING");
+        mapping.setExplanationJson("{\"checks\":[],\"warnings\":[],\"conflicts\":[]}");
+        mappingRepository.save(mapping);
 
         AuditTrail audit = new AuditTrail();
         audit.setUser(admin);
@@ -83,6 +124,7 @@ class HostedRoleEndpointsIntegrationTest {
         audit.setRowHash("A".repeat(64));
         audit.setTimestamp(LocalDateTime.now());
         auditTrailRepository.save(audit);
+        auditChainHeadRepository.save(new AuditChainHead(1, "A".repeat(64)));
     }
 
     @Test
@@ -112,10 +154,20 @@ class HostedRoleEndpointsIntegrationTest {
                 .andExpect(jsonPath("$[*].email", hasItem("operator@ongc.co.in")));
 
         String seniorToken = login("senior.reviewer@numm.gov.in", "reviewer123");
+        Long mappingId = mappingRepository.findByStatus("PENDING").get(0).getMappingId();
+        mvc.perform(post("/api/mappings/{id}/approve", mappingId)
+                        .header("Authorization", bearer(seniorToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"notes\":\"Verified integration fixture\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.cpseName").value("ONGC"))
+                .andExpect(jsonPath("$.categoryName").value("PIPE"));
+
         mvc.perform(get("/api/mappings/audit").header("Authorization", bearer(seniorToken)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].username").value("System Administrator"))
-                .andExpect(jsonPath("$[0].rowHash").value("A".repeat(64)));
+                .andExpect(jsonPath("$[*].username", hasItem("System Administrator")))
+                .andExpect(jsonPath("$[*].rowHash", hasItem("A".repeat(64))));
     }
 
     private User saveUser(String name, String email, String password, String role, Cpse cpse) {

@@ -109,6 +109,7 @@ public class MaterialMappingController {
 
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasAnyRole('REVIEWER', 'SENIOR_REVIEWER', 'ADMIN')")
+    @Transactional
     public ResponseEntity<MappingReviewResponse> approve(
             @PathVariable Long id,
             @RequestBody(required = false) MappingDecisionRequest request,
@@ -124,6 +125,7 @@ public class MaterialMappingController {
 
     @PostMapping("/{id}/reject")
     @PreAuthorize("hasAnyRole('REVIEWER', 'SENIOR_REVIEWER', 'ADMIN')")
+    @Transactional
     public ResponseEntity<MappingReviewResponse> reject(
             @PathVariable Long id,
             @RequestBody(required = false) MappingDecisionRequest request,
@@ -142,6 +144,7 @@ public class MaterialMappingController {
      */
     @PostMapping("/{id}/edit")
     @PreAuthorize("hasAnyRole('REVIEWER', 'SENIOR_REVIEWER', 'ADMIN')")
+    @Transactional
     public ResponseEntity<MappingReviewResponse> edit(
             @PathVariable Long id,
             @Valid @RequestBody EditMappingRequest request,
@@ -178,6 +181,7 @@ public class MaterialMappingController {
 
     @PostMapping("/{id}/approve-and-publish")
     @PreAuthorize("hasAnyRole('SENIOR_REVIEWER', 'ADMIN')")
+    @Transactional
     public ResponseEntity<Map<String, String>> approveAndPublish(
             @PathVariable Long id, @AuthenticationPrincipal UserPrincipal currentUser) {
         User actor = userRepository.findById(currentUser.getUserId())
@@ -192,6 +196,7 @@ public class MaterialMappingController {
      */
     @PostMapping("/{id}/supersede")
     @PreAuthorize("hasAnyRole('ADMIN', 'SENIOR_REVIEWER')")
+    @Transactional
     public ResponseEntity<MappingReviewResponse> supersede(
             @PathVariable Long id,
             @Valid @RequestBody SupersedeMappingRequest request,
