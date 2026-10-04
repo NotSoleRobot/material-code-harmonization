@@ -23,13 +23,15 @@ const CANONICAL_FIELDS = [
 
 const CPSE_LIST = [
   { code: "ONGC", name: "Oil & Natural Gas Corporation (ONGC)" },
-  { code: "BHEL", name: "Bharat Heavy Electricals Limited (BHEL)" },
-  { code: "IOCL", name: "Indian Oil Corporation Limited (IOCL)" },
-  { code: "GAIL", name: "GAIL (India) Limited" },
   { code: "SAIL", name: "Steel Authority of India Limited (SAIL)" },
+  { code: "IOCL", name: "Indian Oil Corporation Limited (IOCL)" },
+  { code: "BHEL", name: "Bharat Heavy Electricals Limited (BHEL)" },
+  { code: "GAIL", name: "GAIL (India) Limited" },
   { code: "NTPC", name: "NTPC Limited" },
   { code: "PGCIL", name: "Power Grid Corporation of India (PGCIL)" },
   { code: "CIL", name: "Coal India Limited (CIL)" },
+  { code: "BPCL", name: "Bharat Petroleum Corporation (BPCL)" },
+  { code: "HPCL", name: "Hindustan Petroleum Corporation (HPCL)" },
 ];
 
 const HEADER_ALIASES = {
@@ -87,14 +89,35 @@ export function IngestionWizard() {
   const [headers, setHeaders] = useState([]);
   const [rows, setRows] = useState([]);
   const [mapping, setMapping] = useState({});
-  // ADMIN defaults to "FROM_CSV" (use each row's cpse_name column);
-  // other roles are fixed to their own enterprise name.
+  // ADMIN defaults to "AUTO_DETECT" (smartly detects per-row enterprise from prefix/column)
   const [selectedCpse, setSelectedCpse] = useState(
-    isAdmin ? "FROM_CSV" : (user?.cpse?.name || user?.cpse || "ONGC")
+    isAdmin ? "AUTO_DETECT" : (user?.cpse?.name || user?.cpse || "ONGC")
   );
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState(null);
   const [validationErrors, setValidationErrors] = useState([]);
+
+  // Helper to resolve the CPSE for any given row
+  const resolveRowCpse = (row) => {
+    if (selectedCpse && selectedCpse !== "FROM_CSV" && selectedCpse !== "AUTO_DETECT") {
+      return selectedCpse;
+    }
+    // 1. If mapped header has value
+    if (mapping.cpse_name && row[mapping.cpse_name]) {
+      const val = String(row[mapping.cpse_name]).trim();
+      if (val) return val.toUpperCase();
+    }
+    // 2. Try inferring from code prefix (e.g. SAIL-PIP-1001 -> SAIL, ONGC-PP-2001 -> ONGC, BHEL-100 -> BHEL)
+    const code = String((mapping.cpse_material_code ? row[mapping.cpse_material_code] : "") || "").trim();
+    if (code) {
+      const match = code.match(/^([A-Za-z0-9]{2,10})[-_:/]/);
+      if (match && match[1] && !/^\d+$/.test(match[1])) {
+        return match[1].toUpperCase();
+      }
+    }
+    // 3. Fall back to user CPSE or GENERAL
+    return (user?.cpse?.name || user?.cpse || "GENERAL").toUpperCase();
+  };
 
   // Async Ingestion Job State
   const [jobId, setJobId] = useState(null);
@@ -208,12 +231,8 @@ export function IngestionWizard() {
       description: mapping.description ? r[mapping.description] || "" : "",
       specification: mapping.specification ? r[mapping.specification] || "" : "",
       unit_of_measure: mapping.unit_of_measure ? r[mapping.unit_of_measure] || "NOS" : "NOS",
-      category: mapping.category ? r[mapping.category] || "" : "",
-      // If ADMIN chose FROM_CSV: use the row's own cpse_name column (or blank so backend rejects gracefully).
-      // If a specific CPSE is chosen: always override with that value.
-      cpse_name: selectedCpse === "FROM_CSV"
-        ? (mapping.cpse_name && r[mapping.cpse_name] ? r[mapping.cpse_name] : "")
-        : selectedCpse,
+      category: mapping.category ? r[mapping.category] || "GENERAL_MRO" : "GENERAL_MRO",
+      cpse_name: resolveRowCpse(r),
       nominal_price: mapping.nominal_price ? r[mapping.nominal_price] || "" : "",
     }));
     return Papa.unparse({ fields: canonicalHeaders, data: transformed });
@@ -392,24 +411,26 @@ export function IngestionWizard() {
                       Submitting organization
                     </span>
                     <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--text-primary)" }}>
-                      {selectedCpse === "FROM_CSV" ? "Per-row from CSV file" : (CPSE_LIST.find((c) => c.code === selectedCpse)?.name || selectedCpse)}
+                      {selectedCpse === "AUTO_DETECT" || selectedCpse === "FROM_CSV"
+                        ? "✨ Auto-detected per record (from file or code prefix)"
+                        : (CPSE_LIST.find((c) => c.code === selectedCpse)?.name || selectedCpse)}
                     </span>
                   </div>
                 </div>
 
-                {/* Enterprise selector — Admin sees full dropdown + per-row option; others see their fixed enterprise */}
+                {/* Enterprise selector — Admin sees full dropdown + auto-detect option; others see their fixed enterprise */}
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>Organization</span>
                   {isAdmin ? (
                     <select
                       className="form-select"
-                      style={{ fontSize: "0.8rem", padding: "0.3rem 0.6rem", width: "200px" }}
+                      style={{ fontSize: "0.8rem", padding: "0.3rem 0.6rem", width: "240px" }}
                       value={selectedCpse}
                       onChange={(e) => setSelectedCpse(e.target.value)}
                     >
-                      <option value="FROM_CSV">📄 Per-row from CSV</option>
+                      <option value="AUTO_DETECT">✨ Auto-Detect from File / Code</option>
                       {CPSE_LIST.map((c) => (
-                        <option key={c.code} value={c.code}>{c.code}</option>
+                        <option key={c.code} value={c.code}>{c.name}</option>
                       ))}
                     </select>
                   ) : (
@@ -465,7 +486,8 @@ export function IngestionWizard() {
               >
                 <Info size={16} color="var(--info)" style={{ flexShrink: 0, marginTop: "2px" }} />
                 <div style={{ fontSize: "0.825rem", color: "var(--info)", lineHeight: 1.5 }}>
-                  Match each file column to the corresponding material field. The organization field will use <strong>{selectedCpse}</strong> when it is not included in the file.
+                  Match each file column to the corresponding material field. Organization will be{" "}
+                  <strong>{selectedCpse === "AUTO_DETECT" || selectedCpse === "FROM_CSV" ? "Auto-detected per record (from file column or code prefix)" : selectedCpse}</strong>.
                 </div>
               </div>
 
@@ -524,7 +546,7 @@ export function IngestionWizard() {
                               value={sourceCol || ""}
                               onChange={(e) => updateMapping(field.key, e.target.value)}
                             >
-                              <option value="">{isCpseField ? `— Auto-assign: ${selectedCpse} —` : "— Not mapped —"}</option>
+                              <option value="">{isCpseField ? (selectedCpse === "AUTO_DETECT" || selectedCpse === "FROM_CSV" ? "— Auto-detect per row —" : `— Auto-assign: ${selectedCpse} —`) : "— Not mapped —"}</option>
                               {headers.map((h) => (
                                 <option key={h} value={h}>{h}</option>
                               ))}
@@ -532,7 +554,9 @@ export function IngestionWizard() {
                           </td>
                           <td>
                             {isCpseField && !sourceCol ? (
-                              <span className="badge badge-success" style={{ fontSize: "0.75rem" }}>Auto: {selectedCpse}</span>
+                              <span className="badge badge-success" style={{ fontSize: "0.75rem" }}>
+                                {rows[0] ? resolveRowCpse(rows[0]) : selectedCpse}
+                              </span>
                             ) : sampleVal ? (
                               <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--text-secondary)", background: "var(--bg-subtle)", padding: "0.15rem 0.4rem", borderRadius: "var(--radius-xs)", border: "1px solid var(--border)" }}>
                                 {sampleVal}
@@ -581,7 +605,9 @@ export function IngestionWizard() {
                   <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontWeight: 700, marginBottom: "0.2rem" }}>
                     <Building2 size={15} color="var(--info)" /> Enterprise Association
                   </div>
-                  <div>Target Enterprise: <strong>{selectedCpse}</strong></div>
+                  <div>
+                    Target: <strong>{selectedCpse === "AUTO_DETECT" || selectedCpse === "FROM_CSV" ? "Dynamic per record" : selectedCpse}</strong>
+                  </div>
                 </div>
 
                 <div style={{ background: warningCount > 0 ? "var(--warning-bg)" : "var(--bg-subtle)", border: `1px solid ${warningCount > 0 ? "var(--warning-border)" : "var(--border)"}`, borderRadius: "var(--radius-sm)", padding: "0.75rem 1rem", fontSize: "0.8rem", color: warningCount > 0 ? "var(--warning-text)" : "var(--text-secondary)" }}>
@@ -591,7 +617,7 @@ export function IngestionWizard() {
                   <div>
                     {warningCount > 0
                       ? `${incompleteCount} incomplete; ${unsupportedCategoryCount} missing a category`
-                      : "All rows are structurally complete and use supported categories"}
+                      : "All rows are structurally complete and ready for ingestion"}
                   </div>
                 </div>
               </div>
@@ -631,7 +657,7 @@ export function IngestionWizard() {
                               />
                             )}
                           </td>
-                          <td><span className="badge badge-neutral">{selectedCpse}</span></td>
+                          <td><span className="badge badge-neutral">{resolveRowCpse(row)}</span></td>
                           {mappedFields.map((f) => {
                             const val = row[mapping[f.key]];
                             return (
@@ -676,7 +702,7 @@ export function IngestionWizard() {
                     Executing AI Harmonization Pipeline...
                   </div>
                   <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", maxWidth: "480px", margin: "0 auto 1.5rem auto" }}>
-                    Evaluating {rows.length} materials from <strong>{selectedCpse}</strong> against National Unified Master records via TF-IDF, Attribute Verification, and Random Forest Classifier.
+                    Evaluating {rows.length} materials against National Unified Master records via TF-IDF, Attribute Verification, and Random Forest Classifier.
                   </div>
 
                   {/* Asynchronous Progress Bar */}
@@ -716,7 +742,7 @@ export function IngestionWizard() {
                         Ingestion & Harmonization Complete
                       </span>
                       <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                        Records successfully ingested and harmonized for <strong>{selectedCpse}</strong>. All proposed mappings remain pending until reviewer approval.
+                        Records successfully ingested and harmonized into the national master catalog. All proposed mappings remain pending until reviewer approval.
                       </span>
                     </div>
                   </div>
@@ -741,7 +767,7 @@ export function IngestionWizard() {
                           {jobResult?.importedItems ?? uploadResult?.importedCount ?? 0} rows imported; {jobResult?.skippedItems ?? uploadResult?.skippedCount ?? 0} incomplete rows skipped
                         </div>
                         <div style={{ fontSize: "0.78rem", marginBottom: "0.35rem" }}>
-                          Open-domain categories are accepted under GENERAL_MRO; only structurally incomplete or unknown-enterprise rows are skipped.
+                          Open-domain categories are accepted under GENERAL_MRO; only structurally incomplete rows are skipped.
                         </div>
                         <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.76rem" }}>
                           {((jobDiagnostics && jobDiagnostics.length > 0 ? jobDiagnostics : uploadResult?.messages) || [])
@@ -755,7 +781,7 @@ export function IngestionWizard() {
                   {/* Result KPI Cards */}
                   <div className="ingest-result-grid" style={{ marginBottom: "1.5rem" }}>
                     <div className="ingest-result-card result-auto">
-                      <div className="result-count">{jobResult.processedItems ?? rows.length}</div>
+                      <div className="result-count">{jobResult.importedItems ?? jobResult.processedItems ?? rows.length}</div>
                       <div className="result-label">Total Processed Records</div>
                       <div className="result-desc">Ingested into staging pool and indexed</div>
                     </div>

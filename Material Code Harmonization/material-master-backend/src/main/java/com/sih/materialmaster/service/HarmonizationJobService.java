@@ -220,43 +220,62 @@ public class HarmonizationJobService {
                     }
                     continue;
                 }
-                if (row.materialCode().isBlank()) {
-                    rejected++;
-                    if (diagnostics.size() < 100) {
-                        diagnostics.add("Row " + row.rowNumber() + ": Missing mandatory plant material code");
-                    }
-                    continue;
+                String code = row.materialCode().trim();
+                if (code.isBlank()) {
+                    code = "MAT-ROW-" + row.rowNumber();
                 }
-                if (row.category().isBlank()) {
-                    rejected++;
-                    if (diagnostics.size() < 100) {
-                        diagnostics.add("Row " + row.rowNumber() + " (" + row.materialCode() + "): Missing material category");
-                    }
-                    continue;
-                }
+
                 Cpse cpse = operatorCpse;
                 if (cpse == null) {
-                    cpse = cpseRepository.findByNameIgnoreCase(
-                            row.cpseName().isBlank() ? "GENERAL" : row.cpseName()).orElse(null);
+                    String candidateName = row.cpseName().trim();
+                    if (candidateName.isBlank() || "FROM_CSV".equalsIgnoreCase(candidateName) || "AUTO_DETECT".equalsIgnoreCase(candidateName)) {
+                        // Infer from material code prefix if available (e.g. SAIL-PIP-1001 -> SAIL, ONGC-PP-2001 -> ONGC)
+                        int sepIdx = code.indexOf('-');
+                        if (sepIdx < 0) sepIdx = code.indexOf('_');
+                        if (sepIdx < 0) sepIdx = code.indexOf('/');
+                        if (sepIdx > 0 && sepIdx < code.length() - 1) {
+                            String prefix = code.substring(0, sepIdx).trim();
+                            if (prefix.length() >= 2 && !prefix.matches("^\\d+$")) {
+                                candidateName = prefix;
+                            }
+                        }
+                    }
+                    if (candidateName.isBlank() || "FROM_CSV".equalsIgnoreCase(candidateName) || "AUTO_DETECT".equalsIgnoreCase(candidateName)) {
+                        candidateName = "GENERAL";
+                    }
+
+                    final String lookupName = candidateName.toUpperCase(Locale.ROOT);
+                    cpse = cpseRepository.findByNameIgnoreCase(lookupName)
+                            .orElseGet(() -> {
+                                try {
+                                    Cpse newCpse = new Cpse();
+                                    newCpse.setName(lookupName);
+                                    newCpse.setSector("Public Sector");
+                                    return cpseRepository.save(newCpse);
+                                } catch (Exception e) {
+                                    return cpseRepository.findByNameIgnoreCase(lookupName).orElse(null);
+                                }
+                            });
                 }
                 if (cpse == null) {
                     rejected++;
                     if (diagnostics.size() < 100) {
-                        diagnostics.add("Row " + row.rowNumber() + " (" + row.materialCode() + "): Enterprise '" + row.cpseName() + "' not recognized in registry");
+                        diagnostics.add("Row " + row.rowNumber() + " (" + code + "): Enterprise could not be resolved");
                     }
                     continue;
                 }
                 Material material = materialRepository
-                        .findByCpse_CpseIdAndCpseMaterialCode(cpse.getCpseId(), row.materialCode())
+                        .findByCpse_CpseIdAndCpseMaterialCode(cpse.getCpseId(), code)
                         .orElseGet(Material::new);
                 material.setCpse(cpse);
-                material.setCpseMaterialCode(row.materialCode());
+                material.setCpseMaterialCode(code);
                 material.setDescription(row.description());
                 material.setSpecification(row.specification());
-                material.setUnitOfMeasure(row.uom().isBlank() ? "NOS" : row.uom().toUpperCase());
+                material.setUnitOfMeasure(row.uom().isBlank() ? "NOS" : row.uom().toUpperCase(Locale.ROOT));
                 BigDecimal nominalPrice = parsePrice(row.price());
                 if (nominalPrice != null) material.setNominalPrice(nominalPrice);
-                material.setCategory(categoryService.resolveOpenDomain(row.category()));
+                String categoryLabel = row.category().isBlank() ? MaterialCategoryService.GENERAL_MRO : row.category();
+                material.setCategory(categoryService.resolveOpenDomain(categoryLabel));
                 ids.add(materialRepository.save(material).getMaterialId());
             }
             entityManager.flush();
@@ -270,16 +289,31 @@ public class HarmonizationJobService {
     private IngestionRow toIngestionRow(CSVRecord record) {
         return new IngestionRow(
                 record.getRecordNumber(),
-                value(record, "cpse_name", 0), value(record, "cpse_material_code", 1),
-                value(record, "description", 2), value(record, "specification", 3),
-                value(record, "unit_of_measure", 4), value(record, "category", 5),
-                value(record, "nominal_price", 6));
+                findValue(record, List.of("cpse_name", "cpse", "enterprise", "plant", "company", "org", "werks"), 0),
+                findValue(record, List.of("cpse_material_code", "material_code", "mat_no", "item_code", "matnr", "code", "part_no", "part_num", "sap_code"), 1),
+                findValue(record, List.of("description", "desc", "short_text", "material_description", "item_desc", "material_name", "name", "maktx"), 2),
+                findValue(record, List.of("specification", "spec", "standard", "grade", "astm", "spec_grade", "material_grade"), 3),
+                findValue(record, List.of("unit_of_measure", "uom", "unit", "base_uom", "meins", "units"), 4),
+                findValue(record, List.of("category", "material_group", "group", "commodity", "class", "matkl", "type"), 5),
+                findValue(record, List.of("nominal_price", "price", "unit_price", "rate", "cost", "amount", "po_rate", "netpr"), 6));
     }
 
-    private String value(CSVRecord record, String header, int fallbackIndex) {
-        String value = record.isMapped(header) ? record.get(header)
-                : (record.size() > fallbackIndex ? record.get(fallbackIndex) : "");
-        return value == null ? "" : value.trim();
+    private String findValue(CSVRecord record, List<String> candidateHeaders, int fallbackIndex) {
+        for (String header : candidateHeaders) {
+            if (record.isMapped(header)) {
+                String val = record.get(header);
+                if (val != null && !val.trim().isBlank()) {
+                    return val.trim();
+                }
+            }
+        }
+        if (record.size() > fallbackIndex) {
+            String val = record.get(fallbackIndex);
+            if (val != null && !val.trim().isBlank()) {
+                return val.trim();
+            }
+        }
+        return "";
     }
 
     private BigDecimal parsePrice(String value) {
