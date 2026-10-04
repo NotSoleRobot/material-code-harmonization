@@ -84,7 +84,7 @@ public class PythonMatchingClient implements MatchingClient {
                     .retrieve()
                     .body(CompareResponse.class));
         } catch (Exception ex) {
-            throw new MatchingServiceException("Python matching service /compare failed", ex);
+            throw new MatchingServiceException("Python matching service /compare failed: " + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()), ex);
         }
     }
 
@@ -108,7 +108,7 @@ public class PythonMatchingClient implements MatchingClient {
                     .retrieve()
                     .body(FindMatchesResponse.class));
         } catch (Exception ex) {
-            throw new MatchingServiceException("Python matching service /find-matches failed", ex);
+            throw new MatchingServiceException("Python matching service /find-matches failed: " + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()), ex);
         }
     }
 
@@ -145,7 +145,7 @@ public class PythonMatchingClient implements MatchingClient {
             }
             return parsed;
         } catch (Exception ex) {
-            throw new MatchingServiceException("Python matching service /find-matches-batch failed", ex);
+            throw new MatchingServiceException("Python matching service /find-matches-batch failed: " + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()), ex);
         }
     }
 
@@ -195,7 +195,7 @@ public class PythonMatchingClient implements MatchingClient {
             }
             return results;
         } catch (Exception ex) {
-            throw new MatchingServiceException("Python matching service /extract-attributes failed", ex);
+            throw new MatchingServiceException("Python matching service /extract-attributes failed: " + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()), ex);
         }
     }
 
@@ -218,7 +218,7 @@ public class PythonMatchingClient implements MatchingClient {
             schemaCache.put(key, new CachedSchema(schema, now + SCHEMA_TTL_MILLIS));
             return schema;
         } catch (Exception ex) {
-            throw new MatchingServiceException("Python matching service schema lookup failed for " + key, ex);
+            throw new MatchingServiceException("Python matching service schema lookup failed for " + key + ": " + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()), ex);
         }
     }
 

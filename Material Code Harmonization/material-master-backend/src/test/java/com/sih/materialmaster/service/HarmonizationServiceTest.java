@@ -247,4 +247,48 @@ class HarmonizationServiceTest {
         assertEquals("AUTO_CONFIRM", result.getRoutingDecision());
         assertEquals("NUMM-401416-CS-050-S40-000777-X", result.getProposedGroupCode());
     }
+
+    @Test
+    @DisplayName("Extract heuristic attributes correctly parses dimension, grade, schedule, standard, and material")
+    void testExtractHeuristicAttributes() {
+        Map<String, Object> attrs = harmonizationService.extractHeuristicAttributes(
+                "CS SEAMLESS PIPE 50MM SCH40 ASTM A106 GRB", "ASTM A106 GR.B");
+        assertNotNull(attrs);
+        assertEquals("CS", attrs.get("material"));
+        assertEquals(50.0, attrs.get("nominal_size_mm"));
+        assertEquals("SCH40", attrs.get("schedule"));
+        assertEquals("ASTM A106", attrs.get("standard"));
+        assertEquals("B", attrs.get("grade"));
+    }
+
+    @Test
+    @DisplayName("Fallback compare returns valid CompareResponse with explanation when matching client throws exception")
+    void testCompare_FallsBackToHeuristicWhenClientFails() {
+        when(matchingClient.compareDetailed(any(), any()))
+                .thenThrow(new com.sih.materialmaster.exception.MatchingServiceException("Service unavailable"));
+
+        MaterialInfoDto a = new MaterialInfoDto(1L, "CS SEAMLESS PIPE 50MM SCH40 ASTM A106 GRB", "PIPE", "ASTM A106 GR.B", "CPSE-1", "ONGC", null);
+        MaterialInfoDto b = new MaterialInfoDto(2L, "CARBON STEEL PIPE DN50 SCHEDULE 40 GR.B IS1239", "PIPE", "IS 1239", "CPSE-2", "IOCL", null);
+
+        CompareResponse resp = harmonizationService.compare(a, b);
+        assertNotNull(resp);
+        assertTrue(resp.getConfidence() > 0.5);
+        assertNotNull(resp.getExplanation());
+        assertFalse(resp.getExplanation().getChecks().isEmpty());
+        assertTrue(resp.getExplanation().getChecks().stream().anyMatch(c -> c.contains("Same material")));
+    }
+
+    @Test
+    @DisplayName("Fallback category schema returns valid schema for standard and open domain categories")
+    void testFallbackCategorySchema() {
+        CategorySchemaDto pipeSchema = harmonizationService.fallbackCategorySchema("PIPE");
+        assertNotNull(pipeSchema);
+        assertEquals("PIPE", pipeSchema.getCategory());
+        assertTrue(pipeSchema.getIdentityCriticalAttributes().contains("material"));
+
+        CategorySchemaDto generalSchema = harmonizationService.fallbackCategorySchema("ELECTRICAL");
+        assertNotNull(generalSchema);
+        assertEquals("ELECTRICAL", generalSchema.getCategory());
+        assertTrue(generalSchema.getIdentityCriticalAttributes().contains("material"));
+    }
 }

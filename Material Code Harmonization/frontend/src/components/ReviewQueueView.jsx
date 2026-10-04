@@ -290,8 +290,9 @@ export function ReviewQueueView() {
           </tr></thead>
           <tbody>{filtered.map((m) => {
             const mappingId = m.mappingId || m.id;
-            const isOwnCpse = user?.cpse?.name && m.cpseName
-              && user.cpse.name.toUpperCase() === m.cpseName.toUpperCase();
+            const userCpseName = typeof user?.cpse === "string" ? user.cpse : user?.cpse?.name;
+            const isOwnCpse = Boolean(userCpseName && m.cpseName
+              && userCpseName.trim().toUpperCase() === m.cpseName.trim().toUpperCase());
             const canApprove = hasRole(["REVIEWER", "SENIOR_REVIEWER"]) && (!isOwnCpse || hasRole("SENIOR_REVIEWER"));
             return <tr key={mappingId}>
               <td className="table-code">#{mappingId}</td>

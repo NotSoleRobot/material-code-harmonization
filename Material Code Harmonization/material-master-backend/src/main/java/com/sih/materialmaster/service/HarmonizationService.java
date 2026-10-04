@@ -14,6 +14,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 /**
  * HarmonizationService implements the 4-step decision order (D1) specified in NUMM:
@@ -59,10 +61,15 @@ public class HarmonizationService {
     }
 
     public CompareResponse compare(MaterialInfoDto a, MaterialInfoDto b) {
-        return matchingClient.compareDetailed(a, b);
+        try {
+            return matchingClient.compareDetailed(a, b);
+        } catch (Exception ex) {
+            log.warn("Matching client compareDetailed failed ({}); using heuristic comparison fallback", ex.getMessage());
+            return fallbackCompare(a, b);
+        }
     }
 
-    /** Extracts and persists attributes in one matching-service request. */
+    /** Extracts and persists attributes in one matching-service request with local fallback. */
     @Transactional
     public void extractAttributesForMaterials(List<Long> materialIds) {
         if (materialIds == null || materialIds.isEmpty()) return;
@@ -73,8 +80,14 @@ public class HarmonizationService {
             throw new IllegalArgumentException("One or more materials no longer exist");
         }
 
-        List<AttributeExtractionResult> results = matchingClient.extractAttributes(
-                materials.stream().map(this::toDto).toList());
+        List<AttributeExtractionResult> results = null;
+        try {
+            results = matchingClient.extractAttributes(
+                    materials.stream().map(this::toDto).toList());
+        } catch (Exception ex) {
+            log.warn("Attribute extraction client failed ({}); extracting heuristic fallback attributes", ex.getMessage());
+            results = fallbackExtractAttributes(materials);
+        }
         Map<Long, AttributeExtractionResult> byMaterialId = new HashMap<>();
         if (results != null) {
             for (AttributeExtractionResult result : results) {
@@ -139,8 +152,15 @@ public class HarmonizationService {
         }
 
         // Fetch category schema to know identity-critical keys
-        CategorySchemaDto schema = matchingClient.getCategorySchema(categoryName);
-        List<String> identityKeys = schema.getIdentityCriticalAttributes();
+        CategorySchemaDto schema;
+        try {
+            schema = matchingClient.getCategorySchema(categoryName);
+        } catch (Exception ex) {
+            log.warn("Category schema lookup failed for {}; using fallback schema: {}", categoryName, ex.getMessage());
+            schema = fallbackCategorySchema(categoryName);
+        }
+        List<String> identityKeys = (schema != null && schema.getIdentityCriticalAttributes() != null)
+                ? schema.getIdentityCriticalAttributes() : List.of("material");
 
         // Compute Attribute Signature
         NationalCodeGenerator.SignatureResult sigResult = codeGenerator.computeAttributeSignature(categoryName, identityKeys, targetAttrs);
@@ -211,10 +231,18 @@ public class HarmonizationService {
                 .map(this::toDto)
                 .toList();
 
-        FindMatchesResponse matchResponse = precomputedResponse != null
-                ? precomputedResponse
-                : matchingClient.findMatches(targetDto, candidateDtos, 5);
-        List<MatchCandidateResultDto> matches = matchResponse.getMatches();
+        FindMatchesResponse matchResponse;
+        if (precomputedResponse != null) {
+            matchResponse = precomputedResponse;
+        } else {
+            try {
+                matchResponse = matchingClient.findMatches(targetDto, candidateDtos, 5);
+            } catch (Exception ex) {
+                log.warn("Matching client findMatches failed for material {}; using fallback: {}", target.getMaterialId(), ex.getMessage());
+                matchResponse = fallbackFindMatches(targetDto, candidateDtos);
+            }
+        }
+        List<MatchCandidateResultDto> matches = matchResponse != null ? matchResponse.getMatches() : Collections.emptyList();
         result.setMatches(matches != null ? matches : Collections.emptyList());
         persistCandidateEvidence(target, candidateEntities, matches);
 
@@ -355,19 +383,21 @@ public class HarmonizationService {
             queries.add(new FindMatchesBatchQuery(toDto(target), candidates, 5));
             queryIds.add(materialId);
         }
-        List<FindMatchesResponse> responses;
+        List<FindMatchesResponse> responses = new ArrayList<>(queries.size());
         try {
             responses = matchingClient.findMatchesBatch(queries);
         } catch (RuntimeException batchFailure) {
-            // A free hosted worker can be running an older image or can time out
-            // while warming the batch model. Do not fail every material when the
-            // stable single-query endpoint can recover the same work.
             log.warn("Batch matching failed for {} materials; falling back to individual requests: {}",
                     queries.size(), batchFailure.getMessage());
-            responses = new ArrayList<>(queries.size());
             for (FindMatchesBatchQuery query : queries) {
-                responses.add(matchingClient.findMatches(
-                        query.material(), query.candidates(), query.topK()));
+                try {
+                    responses.add(matchingClient.findMatches(
+                            query.material(), query.candidates(), query.topK()));
+                } catch (Exception indFailure) {
+                    log.warn("Individual match failed for material {}; using heuristic fallback: {}",
+                            query.material().getMaterialId(), indFailure.getMessage());
+                    responses.add(fallbackFindMatches(query.material(), query.candidates()));
+                }
             }
         }
         Map<Long, FindMatchesResponse> byMaterial = new LinkedHashMap<>();
@@ -694,5 +724,270 @@ public class HarmonizationService {
         dto.setCpseName(m.getCpse() != null ? m.getCpse().getName() : "Unknown");
         dto.setExtractedAttributes(parseExtractedAttributes(m));
         return dto;
+    }
+
+    private static final Pattern DIM_PATTERN = Pattern.compile(
+            "\\b(?:(?:DN|NB|OD|ID)\\s*)?(\\d+(?:\\.\\d+)?)\\s*(?:MM|INCH|IN|\"|')\\b|\\bDN\\s*(\\d+(?:\\.\\d+)?)\\b",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern MAT_PATTERN = Pattern.compile(
+            "\\b(CS|CARBON\\s+STEEL|SS304|SS316|SS|STAINLESS\\s+STEEL|MS|MILD\\s+STEEL|CI|CAST\\s+IRON|GI|PVC|HDPE|BRASS|BRONZE|COPPER|ALUMINIUM|ALUMINUM)\\b",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern STD_PATTERN = Pattern.compile(
+            "\\b(ASTM\\s*[A-Z]?\\d+|ASME\\s*B?\\d+(?:\\.\\d+)?|IS\\s*\\d+|DIN\\s*\\d+|ISO\\s*\\d+|API\\s*\\d+|IEC\\s*\\d+)\\b",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern GRD_PATTERN = Pattern.compile(
+            "\\b(?:GRADE|GR\\.?|TYPE|TP)\\s*([A-Z0-9.]+)\\b|\\bGR(?:ADE)?([A-Z0-9.]+)\\b",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern SCH_PATTERN = Pattern.compile(
+            "\\b(?:SCH(?:EDULE)?)\\s*(\\d+[A-Z]?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    public Map<String, Object> extractHeuristicAttributes(String description, String specification) {
+        String text = ((description != null ? description : "") + " " + (specification != null ? specification : "")).trim();
+        Map<String, Object> attrs = new LinkedHashMap<>();
+        if (text.isBlank()) return attrs;
+
+        Matcher matM = MAT_PATTERN.matcher(text);
+        if (matM.find()) {
+            String m = matM.group(1).toUpperCase(Locale.ROOT).replaceAll("\\s+", " ");
+            if (m.contains("CARBON")) m = "CS";
+            else if (m.contains("STAINLESS")) m = "SS";
+            else if (m.contains("MILD")) m = "MS";
+            else if (m.contains("CAST")) m = "CI";
+            attrs.put("material", m);
+            attrs.put("material_type", m);
+        }
+
+        Matcher dimM = DIM_PATTERN.matcher(text);
+        if (dimM.find()) {
+            String val = dimM.group(1) != null ? dimM.group(1) : dimM.group(2);
+            if (val != null) {
+                try {
+                    double num = Double.parseDouble(val);
+                    attrs.put("nominal_size_mm", num);
+                    attrs.put("dimension", num + "MM");
+                } catch (Exception ignored) {}
+            }
+        }
+
+        Matcher schM = SCH_PATTERN.matcher(text);
+        if (schM.find()) {
+            attrs.put("schedule", "SCH" + schM.group(1).toUpperCase(Locale.ROOT));
+        }
+
+        Matcher stdM = STD_PATTERN.matcher(text);
+        if (stdM.find()) {
+            attrs.put("standard", stdM.group(1).toUpperCase(Locale.ROOT).replaceAll("\\s+", " "));
+        }
+
+        Matcher grdM = GRD_PATTERN.matcher(text);
+        if (grdM.find()) {
+            String g = grdM.group(1) != null ? grdM.group(1) : grdM.group(2);
+            if (g != null && !g.isBlank()) {
+                attrs.put("grade", g.toUpperCase(Locale.ROOT).trim());
+            }
+        }
+        return attrs;
+    }
+
+    public List<AttributeExtractionResult> fallbackExtractAttributes(List<Material> materials) {
+        List<AttributeExtractionResult> results = new ArrayList<>(materials.size());
+        for (Material m : materials) {
+            Map<String, Object> attrs = extractHeuristicAttributes(m.getDescription(), m.getSpecification());
+            AttributeExtractionResult r = new AttributeExtractionResult();
+            r.setMaterialId(m.getMaterialId());
+            r.setCategory(m.getCategory() != null ? m.getCategory().getName() : "GENERAL");
+            r.setAttributes(attrs);
+            r.setIdentityCriticalPresent(attrs.containsKey("material"));
+            r.setMissingIdentityKeys(attrs.containsKey("material") ? List.of() : List.of("material"));
+            results.add(r);
+        }
+        return results;
+    }
+
+    public CategorySchemaDto fallbackCategorySchema(String category) {
+        String cat = (category != null) ? category.toUpperCase(Locale.ROOT) : "GENERAL";
+        return switch (cat) {
+            case "PIPE" -> new CategorySchemaDto("PIPE", List.of("material"), List.of("nominal_size_mm", "schedule", "grade"), List.of("material", "nominal_size_mm", "schedule", "grade", "standard"));
+            case "VALVE" -> new CategorySchemaDto("VALVE", List.of("valve_type", "body_material"), List.of("nominal_size_mm", "pressure_class"), List.of("valve_type", "body_material", "nominal_size_mm", "pressure_class"));
+            case "FLANGE" -> new CategorySchemaDto("FLANGE", List.of("flange_type", "material"), List.of("nominal_size_mm", "pressure_class"), List.of("flange_type", "material", "nominal_size_mm", "pressure_class"));
+            case "FITTING" -> new CategorySchemaDto("FITTING", List.of("fitting_type", "material"), List.of("nominal_size_mm", "schedule"), List.of("fitting_type", "material", "nominal_size_mm", "schedule"));
+            case "BEARING" -> new CategorySchemaDto("BEARING", List.of("bearing_type", "bearing_number"), List.of("bore_diameter_mm"), List.of("bearing_type", "bearing_number", "bore_diameter_mm"));
+            case "GASKET" -> new CategorySchemaDto("GASKET", List.of("gasket_type", "material"), List.of("nominal_size_mm", "pressure_class"), List.of("gasket_type", "material", "nominal_size_mm", "pressure_class"));
+            case "FASTENER", "BOLT" -> new CategorySchemaDto(cat, List.of("fastener_type", "material"), List.of("nominal_diameter_mm", "length_mm", "grade"), List.of("fastener_type", "material", "nominal_diameter_mm", "length_mm", "grade"));
+            default -> new CategorySchemaDto(cat, List.of("material"), List.of("nominal_size_mm", "standard"), List.of("material", "nominal_size_mm", "standard"));
+        };
+    }
+
+    public CompareResponse fallbackCompare(MaterialInfoDto a, MaterialInfoDto b) {
+        Map<String, Object> attrsA = extractHeuristicAttributes(a.getDescription(), a.getSpecification());
+        Map<String, Object> attrsB = extractHeuristicAttributes(b.getDescription(), b.getSpecification());
+        return fallbackCompare(a, b, attrsA, attrsB);
+    }
+
+    public CompareResponse fallbackCompare(MaterialInfoDto a, MaterialInfoDto b,
+                                           Map<String, Object> attrsA, Map<String, Object> attrsB) {
+        List<String> checks = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
+        List<String> conflicts = new ArrayList<>();
+
+        boolean sameCat = a.getCategory() != null && b.getCategory() != null
+                && a.getCategory().equalsIgnoreCase(b.getCategory());
+        if (!sameCat) {
+            conflicts.add("Category divergence: " + a.getCategory() + " vs " + b.getCategory());
+        }
+
+        double lexical = computeTokenSimilarity(a.getDescription(), b.getDescription());
+        int compared = 0;
+        int agree = 0;
+
+        String matA = (String) attrsA.get("material");
+        String matB = (String) attrsB.get("material");
+        if (matA != null && matB != null) {
+            compared++;
+            if (matA.equalsIgnoreCase(matB)) {
+                agree++;
+                checks.add("Same material: " + matA);
+            } else {
+                conflicts.add("Material conflict: " + matA + " vs " + matB);
+            }
+        }
+
+        Object sizeA = attrsA.get("nominal_size_mm");
+        Object sizeB = attrsB.get("nominal_size_mm");
+        if (sizeA != null && sizeB != null) {
+            compared++;
+            if (Objects.equals(sizeA, sizeB)) {
+                agree++;
+                checks.add("Same nominal size: " + sizeA + "mm");
+            } else {
+                conflicts.add("Size divergence: " + sizeA + "mm vs " + sizeB + "mm");
+            }
+        }
+
+        String grdA = (String) attrsA.get("grade");
+        String grdB = (String) attrsB.get("grade");
+        if (grdA != null && grdB != null) {
+            compared++;
+            if (grdA.equalsIgnoreCase(grdB)) {
+                agree++;
+                checks.add("Same grade: " + grdA);
+            } else {
+                warnings.add("Grade variance: " + grdA + " vs " + grdB);
+            }
+        }
+
+        String schA = (String) attrsA.get("schedule");
+        String schB = (String) attrsB.get("schedule");
+        if (schA != null && schB != null) {
+            compared++;
+            if (schA.equalsIgnoreCase(schB)) {
+                agree++;
+                checks.add("Same schedule: " + schA);
+            } else {
+                warnings.add("Schedule variance: " + schA + " vs " + schB);
+            }
+        }
+
+        String stdA = (String) attrsA.get("standard");
+        String stdB = (String) attrsB.get("standard");
+        if (stdA != null && stdB != null) {
+            if (stdA.equalsIgnoreCase(stdB)) {
+                checks.add("Same standard: " + stdA);
+            } else {
+                conflicts.add("Standard divergence: " + stdA + " vs " + stdB);
+            }
+        }
+
+        double attrScore = compared > 0 ? ((double) agree / compared) : 0.5;
+        double overallScore = 0.5 * lexical + 0.4 * attrScore + (sameCat ? 0.1 : 0.0);
+        if (!conflicts.isEmpty() && conflicts.stream().anyMatch(c -> c.contains("Material conflict"))) {
+            overallScore = Math.min(overallScore, 0.25);
+        }
+
+        BigDecimal scoreBd = BigDecimal.valueOf(Math.min(1.0, Math.max(0.0, overallScore)))
+                .setScale(4, RoundingMode.HALF_UP);
+        double score = scoreBd.doubleValue();
+
+        String tier = score >= 0.85 ? "HIGH" : (score >= 0.60 ? "MEDIUM" : "LOW");
+        String relationship = score >= 0.85 ? "NEAR_DUPLICATE" : (score >= 0.60 ? "FUNCTIONALLY_EQUIVALENT" : "NOT_A_MATCH");
+
+        ExplanationDto exp = new ExplanationDto(checks, warnings, conflicts);
+        Map<String, Double> scoreBreakdown = Map.of(
+                "modelProbability", score,
+                "lexicalSimilarity", BigDecimal.valueOf(lexical).setScale(4, RoundingMode.HALF_UP).doubleValue(),
+                "attributeCompatibility", BigDecimal.valueOf(attrScore).setScale(4, RoundingMode.HALF_UP).doubleValue(),
+                "categoryCompatibility", sameCat ? 1.0 : 0.0
+        );
+
+        CompareResponse resp = new CompareResponse();
+        resp.setPredictedRelationship(relationship);
+        resp.setConfidence(score);
+        resp.setMatchProbability(score);
+        resp.setLabelProbability(score);
+        resp.setConfidenceTier(tier);
+        resp.setClassProbabilities(Map.of(relationship, score));
+        resp.setExplanation(exp);
+        resp.setScoreBreakdown(scoreBreakdown);
+        resp.setCriticalConflicts(conflicts);
+        resp.setModelVersion("java-heuristic-fallback-1.0");
+        resp.setNote("Computed via local rule-based heuristic engine");
+        return resp;
+    }
+
+    private double computeTokenSimilarity(String desc1, String desc2) {
+        if (desc1 == null || desc2 == null) return 0.0;
+        Set<String> set1 = new HashSet<>(Arrays.asList(desc1.toUpperCase(Locale.ROOT).split("[\\s,;/-]+")));
+        Set<String> set2 = new HashSet<>(Arrays.asList(desc2.toUpperCase(Locale.ROOT).split("[\\s,;/-]+")));
+        set1.removeIf(String::isBlank);
+        set2.removeIf(String::isBlank);
+        if (set1.isEmpty() && set2.isEmpty()) return 1.0;
+        if (set1.isEmpty() || set2.isEmpty()) return 0.0;
+
+        Set<String> union = new HashSet<>(set1);
+        union.addAll(set2);
+        Set<String> intersection = new HashSet<>(set1);
+        intersection.retainAll(set2);
+
+        return (double) intersection.size() / union.size();
+    }
+
+    public FindMatchesResponse fallbackFindMatches(MaterialInfoDto target, List<MaterialInfoDto> candidates) {
+        if (candidates == null || candidates.isEmpty()) {
+            return new FindMatchesResponse(Collections.emptyList());
+        }
+        List<MatchCandidateResultDto> matches = new ArrayList<>();
+        Map<String, Object> targetAttrs = extractHeuristicAttributes(target.getDescription(), target.getSpecification());
+
+        for (MaterialInfoDto candidate : candidates) {
+            Map<String, Object> candAttrs = extractHeuristicAttributes(candidate.getDescription(), candidate.getSpecification());
+            CompareResponse comp = fallbackCompare(target, candidate, targetAttrs, candAttrs);
+
+            MatchCandidateResultDto match = new MatchCandidateResultDto();
+            match.setCandidate(toPayloadMap(candidate));
+            match.setMatchProbability(comp.getMatchProbability());
+            match.setConfidence(comp.getConfidence());
+            match.setLabelProbability(comp.getLabelProbability());
+            match.setConfidenceTier(comp.getConfidenceTier());
+            match.setPredictedRelationship(comp.getPredictedRelationship());
+            match.setExplanation(comp.getExplanation());
+            match.setScoreBreakdown(comp.getScoreBreakdown());
+            matches.add(match);
+        }
+
+        matches.sort((m1, m2) -> Double.compare(m2.getMatchProbability(), m1.getMatchProbability()));
+        int topK = Math.min(5, matches.size());
+        return new FindMatchesResponse(matches.subList(0, topK));
+    }
+
+    private Map<String, Object> toPayloadMap(MaterialInfoDto info) {
+        Map<String, Object> map = new HashMap<>();
+        if (info.getMaterialId() != null) map.put("material_id", info.getMaterialId());
+        map.put("description", info.getDescription() != null ? info.getDescription() : "");
+        map.put("category", info.getCategory() != null ? info.getCategory() : "UNKNOWN");
+        if (info.getSpecification() != null) map.put("specification", info.getSpecification());
+        if (info.getCpseMaterialCode() != null) map.put("cpse_material_code", info.getCpseMaterialCode());
+        if (info.getCpseName() != null) map.put("cpse_name", info.getCpseName());
+        return map;
     }
 }

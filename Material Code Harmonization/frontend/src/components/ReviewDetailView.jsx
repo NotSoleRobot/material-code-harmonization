@@ -145,8 +145,9 @@ export function ReviewDetailView() {
   }
 
   // Conflict of Interest check: ordinary reviewers cannot decide their own CPSE's materials.
-  const isOwnCpse = user?.cpse?.name && mapping.cpseName
-    && user.cpse.name.toUpperCase() === mapping.cpseName.toUpperCase();
+  const userCpseName = typeof user?.cpse === "string" ? user.cpse : user?.cpse?.name;
+  const isOwnCpse = Boolean(userCpseName && mapping.cpseName
+    && userCpseName.trim().toUpperCase() === mapping.cpseName.trim().toUpperCase());
   const canApprove = hasRole(["REVIEWER", "SENIOR_REVIEWER"])
     && (!isOwnCpse || hasRole("SENIOR_REVIEWER"));
 
@@ -382,6 +383,13 @@ export function ReviewDetailView() {
             }}>
               <Edit3 size={14} /> Edit Mapping
             </button>
+          )}
+
+          {isOwnCpse && !hasRole("SENIOR_REVIEWER") && mapping.status === "PENDING" && (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", color: "var(--warning)", fontSize: "0.8rem", background: "var(--warning-bg)", padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--warning-border)" }}>
+              <ShieldAlert size={14} />
+              <span>Conflict of Interest: You belong to {userCpseName}; independent or senior review required.</span>
+            </div>
           )}
 
           {canApprove && mapping.status === "PENDING" && (

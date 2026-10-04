@@ -176,9 +176,17 @@ public class HarmonizationJobService {
         int failures = 0;
         String firstFailure = null;
         try {
-            harmonizationService.extractAttributesForMaterials(materialIds);
-            Map<Long, com.sih.materialmaster.dto.FindMatchesResponse> matches =
-                    harmonizationService.prepareBatchMatches(materialIds);
+            try {
+                harmonizationService.extractAttributesForMaterials(materialIds);
+            } catch (Exception ex) {
+                log.warn("Batch extractAttributesForMaterials failed: {}", ex.getMessage());
+            }
+            Map<Long, com.sih.materialmaster.dto.FindMatchesResponse> matches = Collections.emptyMap();
+            try {
+                matches = harmonizationService.prepareBatchMatches(materialIds);
+            } catch (Exception ex) {
+                log.warn("Batch prepareBatchMatches failed: {}", ex.getMessage());
+            }
             for (Long materialId : materialIds) {
                 try {
                     var result = harmonizationService.harmonizeMaterial(materialId, matches.get(materialId));
@@ -368,9 +376,17 @@ public class HarmonizationJobService {
             for (int start = 0; start < materialIds.size(); start += batchSize) {
                 int end = Math.min(start + batchSize, materialIds.size());
                 List<Long> batchIds = materialIds.subList(start, end);
-                harmonizationService.extractAttributesForMaterials(batchIds);
-                Map<Long, com.sih.materialmaster.dto.FindMatchesResponse> batchMatches =
-                        harmonizationService.prepareBatchMatches(batchIds);
+                try {
+                    harmonizationService.extractAttributesForMaterials(batchIds);
+                } catch (Exception ex) {
+                    log.warn("Batch extractAttributesForMaterials failed: {}", ex.getMessage());
+                }
+                Map<Long, com.sih.materialmaster.dto.FindMatchesResponse> batchMatches = Collections.emptyMap();
+                try {
+                    batchMatches = harmonizationService.prepareBatchMatches(batchIds);
+                } catch (Exception ex) {
+                    log.warn("Batch prepareBatchMatches failed: {}", ex.getMessage());
+                }
 
                 for (int offset = 0; offset < batchIds.size(); offset++) {
                     int i = start + offset;

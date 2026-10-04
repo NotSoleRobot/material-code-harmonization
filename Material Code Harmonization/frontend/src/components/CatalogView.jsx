@@ -179,14 +179,19 @@ export function CatalogView() {
             <>
                 {/* Status lifecycle tabs */}
                 <div className="btn-group" style={{ marginRight: "0.5rem" }}>
-                  {["ACTIVE", "PROPOSED", "SUPERSEDED"].map((s) => (
+                  {[
+                    { key: "ALL", label: "All Statuses" },
+                    { key: "ACTIVE", label: "Published" },
+                    { key: "PROPOSED", label: "Provisional" },
+                    { key: "SUPERSEDED", label: "Superseded" },
+                  ].map(({ key, label }) => (
                     <button
-                      key={s}
-                      className={`btn btn-sm ${selectedStatus === s ? "btn-primary" : "btn-outline"}`}
-                      onClick={() => handleStatusFilter(s)}
-                      id={`tab-status-${s.toLowerCase()}`}
+                      key={key}
+                      className={`btn btn-sm ${selectedStatus === key ? "btn-primary" : "btn-outline"}`}
+                      onClick={() => handleStatusFilter(key)}
+                      id={`tab-status-${key.toLowerCase()}`}
                     >
-                      {s === "ACTIVE" ? "Published" : s === "PROPOSED" ? "Provisional" : "Superseded"}
+                      {label}
                     </button>
                   ))}
                 </div>
@@ -219,6 +224,21 @@ export function CatalogView() {
       ) : filteredResults.length === 0 ? (
         <div className="card text-center p-5">
           <p className="text-lg font-medium text-muted mb-3">{t("catalog.emptySearch")}</p>
+          {selectedStatus === "ACTIVE" && (
+            <div style={{ marginBottom: "1.25rem" }}>
+              <p className="text-sm text-dim mb-3">
+                No published canonical codes found. Newly harmonized materials start as <strong>Provisional</strong> candidate records until approved.
+              </p>
+              <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem" }}>
+                <button className="btn btn-outline btn-sm" onClick={() => handleStatusFilter("ALL")}>
+                  View All Statuses
+                </button>
+                <button className="btn btn-outline btn-sm" onClick={() => handleStatusFilter("PROPOSED")}>
+                  View Provisional Records
+                </button>
+              </div>
+            </div>
+          )}
           {isOperator && (
             <div>
               <p className="text-sm text-dim mb-4">
