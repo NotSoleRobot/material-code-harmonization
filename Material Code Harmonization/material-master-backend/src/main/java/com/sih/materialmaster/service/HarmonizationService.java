@@ -70,7 +70,6 @@ public class HarmonizationService {
     }
 
     /** Extracts and persists attributes in one matching-service request with local fallback. */
-    @Transactional
     public void extractAttributesForMaterials(List<Long> materialIds) {
         if (materialIds == null || materialIds.isEmpty()) return;
 
@@ -118,7 +117,6 @@ public class HarmonizationService {
     /**
      * Core harmonization pipeline for a single material (FR2, FR4, FR6, Innovation #1 & #2, D1).
      */
-    @Transactional
     public HarmonizationResultDto harmonizeMaterial(Long materialId) {
         return harmonizeMaterial(materialId, null);
     }

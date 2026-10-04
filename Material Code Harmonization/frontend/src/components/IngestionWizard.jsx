@@ -81,12 +81,17 @@ export function IngestionWizard() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  const isAdmin = user?.role === "ADMIN";
   const [step, setStep] = useState(1);
   const [file, setFile] = useState(null);
   const [headers, setHeaders] = useState([]);
   const [rows, setRows] = useState([]);
   const [mapping, setMapping] = useState({});
-  const [selectedCpse, setSelectedCpse] = useState(user?.cpse?.name || user?.cpse || "ONGC");
+  // ADMIN defaults to "FROM_CSV" (use each row's cpse_name column);
+  // other roles are fixed to their own enterprise name.
+  const [selectedCpse, setSelectedCpse] = useState(
+    isAdmin ? "FROM_CSV" : (user?.cpse?.name || user?.cpse || "ONGC")
+  );
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState(null);
   const [validationErrors, setValidationErrors] = useState([]);
@@ -204,7 +209,11 @@ export function IngestionWizard() {
       specification: mapping.specification ? r[mapping.specification] || "" : "",
       unit_of_measure: mapping.unit_of_measure ? r[mapping.unit_of_measure] || "NOS" : "NOS",
       category: mapping.category ? r[mapping.category] || "" : "",
-      cpse_name: mapping.cpse_name && r[mapping.cpse_name] ? r[mapping.cpse_name] : selectedCpse,
+      // If ADMIN chose FROM_CSV: use the row's own cpse_name column (or blank so backend rejects gracefully).
+      // If a specific CPSE is chosen: always override with that value.
+      cpse_name: selectedCpse === "FROM_CSV"
+        ? (mapping.cpse_name && r[mapping.cpse_name] ? r[mapping.cpse_name] : "")
+        : selectedCpse,
       nominal_price: mapping.nominal_price ? r[mapping.nominal_price] || "" : "",
     }));
     return Papa.unparse({ fields: canonicalHeaders, data: transformed });
@@ -383,23 +392,31 @@ export function IngestionWizard() {
                       Submitting organization
                     </span>
                     <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--text-primary)" }}>
-                      {CPSE_LIST.find((c) => c.code === selectedCpse)?.name || selectedCpse}
+                      {selectedCpse === "FROM_CSV" ? "Per-row from CSV file" : (CPSE_LIST.find((c) => c.code === selectedCpse)?.name || selectedCpse)}
                     </span>
                   </div>
                 </div>
 
+                {/* Enterprise selector — Admin sees full dropdown + per-row option; others see their fixed enterprise */}
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>Organization</span>
-                  <select
-                    className="form-select"
-                    style={{ fontSize: "0.8rem", padding: "0.3rem 0.6rem", width: "160px" }}
-                    value={selectedCpse}
-                    onChange={(e) => setSelectedCpse(e.target.value)}
-                  >
-                    {CPSE_LIST.map((c) => (
-                      <option key={c.code} value={c.code}>{c.code}</option>
-                    ))}
-                  </select>
+                  {isAdmin ? (
+                    <select
+                      className="form-select"
+                      style={{ fontSize: "0.8rem", padding: "0.3rem 0.6rem", width: "200px" }}
+                      value={selectedCpse}
+                      onChange={(e) => setSelectedCpse(e.target.value)}
+                    >
+                      <option value="FROM_CSV">📄 Per-row from CSV</option>
+                      {CPSE_LIST.map((c) => (
+                        <option key={c.code} value={c.code}>{c.code}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                      {CPSE_LIST.find((c) => c.code === selectedCpse)?.code || selectedCpse}
+                    </span>
+                  )}
                 </div>
               </div>
 

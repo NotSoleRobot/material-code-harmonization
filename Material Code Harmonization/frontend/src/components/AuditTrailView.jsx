@@ -10,17 +10,23 @@ import { LoadingSkeleton } from "./common/LoadingSkeleton";
 import { Table } from "./common/Table";
 
 const ACTION_FILTERS = [
-  { key: "ALL", label: "All Audit Events" },
-  { key: "MAPPING_CONFIRMED", label: "Approvals (Confirmed)" },
+  { key: "REVIEW_DECISIONS", label: "Review Decisions" },
+  { key: "ALL", label: "All Events" },
+  { key: "MAPPING_CONFIRMED", label: "Approvals" },
   { key: "MAPPING_REJECTED", label: "Rejections" },
-  { key: "BULK_INGEST", label: "Bulk Ingests" },
-  { key: "GROUP_PROPOSED", label: "Code Registrations" },
   { key: "MAPPING_SUPERSEDED", label: "Admin Overrides" },
+  { key: "CODE_MINTED", label: "Codes Published" },
 ];
+
+// Events that count as manual governance decisions
+const REVIEW_DECISION_ACTIONS = new Set([
+  "MAPPING_CONFIRMED", "MAPPING_REJECTED", "MAPPING_SUPERSEDED",
+  "MAPPING_EDITED", "CODE_MINTED", "BULK_APPROVAL",
+]);
 
 export function AuditTrailView() {
   const [search, setSearch] = useState("");
-  const [actionFilter, setActionFilter] = useState("ALL");
+  const [actionFilter, setActionFilter] = useState("REVIEW_DECISIONS");
   const [selectedAudit, setSelectedAudit] = useState(null);
 
   // Cryptographic Verification state
@@ -30,7 +36,9 @@ export function AuditTrailView() {
 
   const { data: logs = [], isLoading: loading, error: logsError, refetch: loadLogs } = useQuery({
     queryKey: ["auditTrail", actionFilter],
-    queryFn: () => api.getAuditTrail(actionFilter === "ALL" ? "" : actionFilter),
+    queryFn: () => api.getAuditTrail(
+      (actionFilter === "ALL" || actionFilter === "REVIEW_DECISIONS") ? "" : actionFilter
+    ),
   });
   const error = logsError?.message;
 
@@ -63,7 +71,13 @@ export function AuditTrailView() {
         String(l.entityId).includes(q) ||
         String(l.auditId).includes(q);
 
-      const matchAction = actionFilter === "ALL" || l.action === actionFilter;
+      const matchAction =
+        actionFilter === "ALL"
+          ? true
+          : actionFilter === "REVIEW_DECISIONS"
+          ? REVIEW_DECISION_ACTIONS.has(l.action)
+          : l.action === actionFilter;
+
       return matchSearch && matchAction;
     });
   }, [logs, search, actionFilter]);

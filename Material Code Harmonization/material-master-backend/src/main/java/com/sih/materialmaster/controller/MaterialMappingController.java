@@ -180,7 +180,7 @@ public class MaterialMappingController {
     }
 
     @PostMapping("/{id}/approve-and-publish")
-    @PreAuthorize("hasAnyRole('SENIOR_REVIEWER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('REVIEWER', 'SENIOR_REVIEWER', 'ADMIN')")
     @Transactional
     public ResponseEntity<Map<String, String>> approveAndPublish(
             @PathVariable Long id, @AuthenticationPrincipal UserPrincipal currentUser) {

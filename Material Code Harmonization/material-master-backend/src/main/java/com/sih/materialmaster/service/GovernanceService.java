@@ -2,9 +2,10 @@ package com.sih.materialmaster.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sih.materialmaster.exception.ConflictOfInterestException;
 import com.sih.materialmaster.entity.*;
 import com.sih.materialmaster.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,13 +14,13 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 /**
- * FR8: Human review and approval/rejection of AI-suggested mappings.
- * Enforces 4-eyes governance, Conflict of Interest (COI) isolation,
- * and authorized National Code minting (D3 / WP4).
+ * Human review and approval/rejection of AI-suggested mappings.
+ * A single Reviewer can confirm and immediately publish (auto-mint) a group.
  */
 @Service
 public class GovernanceService {
 
+    private static final Logger log = LoggerFactory.getLogger(GovernanceService.class);
     private final MaterialMappingRepository mappingRepository;
     private final MaterialGroupRepository groupRepository;
     private final NationalCodeGenerator codeGenerator;
@@ -57,22 +58,6 @@ public class GovernanceService {
         }
         if (!"PENDING".equalsIgnoreCase(mapping.getStatus())) {
             throw new IllegalStateException("Mapping #" + mappingId + " is already " + mapping.getStatus() + " — cannot decide without Admin override.");
-        }
-
-        // Conflict of interest check (W4.1 / D3):
-        // Standard reviewer cannot decide a mapping where the material belongs to their own CPSE
-        if (reviewer.getCpse() != null && mapping.getMaterial() != null && mapping.getMaterial().getCpse() != null) {
-            if (reviewer.getCpse().getCpseId().equals(mapping.getMaterial().getCpse().getCpseId())) {
-                if ("REVIEWER".equalsIgnoreCase(reviewer.getRole())) {
-                    String reviewerCpseName = reviewer.getCpse().getName();
-                    String materialCpseName = mapping.getMaterial().getCpse().getName();
-                    throw new ConflictOfInterestException(
-                            "Conflict of Interest: Reviewer belongs to the submitting CPSE (" + reviewerCpseName + "). Escalated to senior catalog committee.",
-                            reviewerCpseName,
-                            materialCpseName
-                    );
-                }
-            }
         }
 
         String targetStatus = ("CONFIRMED".equalsIgnoreCase(decision) || "APPROVE".equalsIgnoreCase(decision))
@@ -120,7 +105,14 @@ public class GovernanceService {
         MaterialGroup group = savedMapping.getGroup();
         if (group != null) {
             if ("CONFIRMED".equals(targetStatus)) {
-                // Confirmation keeps the group PROPOSED until senior reviewer publishes & mints
+                // Auto-publish: mint the group immediately when at least one mapping is confirmed.
+                if ("PROPOSED".equals(group.getStatus())) {
+                    try {
+                        mintGroup(group.getGroupId(), actor);
+                    } catch (Exception mintEx) {
+                        log.warn("Auto-mint for group {} failed after confirmation, group left PROPOSED: {}", group.getGroupId(), mintEx.getMessage());
+                    }
+                }
             } else if ("REJECTED".equals(targetStatus)) {
                 // Check if any confirmed/pending mapping remains for this group
                 long confirmedCount = mappingRepository.countByGroup_GroupIdAndStatus(group.getGroupId(), "CONFIRMED");
@@ -253,10 +245,7 @@ public class GovernanceService {
             throw new IllegalStateException("Fast-track is unavailable because identity-critical conflicts require review");
         }
         if ("PENDING".equalsIgnoreCase(mapping.getStatus())) {
-            if (!"ADMIN".equalsIgnoreCase(actor.getRole())) {
-                throw new AccessDeniedException("Four-eyes policy: a senior reviewer cannot approve and publish the same mapping. Ask another reviewer to confirm it first.");
-            }
-            mapping = decideMapping(mappingId, actor, "CONFIRMED", "Administrative high-confidence fast-track approval");
+            mapping = decideMapping(mappingId, actor, "CONFIRMED", "High-confidence fast-track approval");
         } else if (!"CONFIRMED".equalsIgnoreCase(mapping.getStatus())) {
             throw new IllegalStateException("Only PENDING or CONFIRMED mappings can be fast-tracked");
         }
@@ -288,13 +277,15 @@ public class GovernanceService {
     }
 
     /**
-     * WP4 Task 3 / D3: Publication & National Code Minting (Step 2 of Governance Loop).
-     * Rule: The publisher (SENIOR_REVIEWER) must NOT be the user who confirmed any mapping in this group.
+     * Publication & National Code Minting.
+     * Any reviewer or admin may mint a group that has at least one CONFIRMED mapping.
      */
     @Transactional
     public String mintGroup(Long id, User approver) {
-        if (!"SENIOR_REVIEWER".equalsIgnoreCase(approver.getRole()) && !"ADMIN".equalsIgnoreCase(approver.getRole())) {
-            throw new AccessDeniedException("Senior reviewer approval required to mint national material codes");
+        if (!"REVIEWER".equalsIgnoreCase(approver.getRole())
+                && !"SENIOR_REVIEWER".equalsIgnoreCase(approver.getRole())
+                && !"ADMIN".equalsIgnoreCase(approver.getRole())) {
+            throw new AccessDeniedException("Reviewer approval required to mint national material codes");
         }
 
         MaterialGroup group = groupRepository.findLockedById(id)
@@ -312,12 +303,7 @@ public class GovernanceService {
             throw new IllegalStateException("At least one CONFIRMED mapping is required before publishing a group");
         }
 
-        // Four-eyes rule: The publisher cannot be the same user who confirmed the underlying mapping (unless ADMIN override)
-        boolean isSelfReview = confirmed.stream().anyMatch(
-                m -> m.getReviewedBy() != null && Objects.equals(m.getReviewedBy().getUserId(), approver.getUserId()));
-        if (isSelfReview && !"ADMIN".equalsIgnoreCase(approver.getRole())) {
-            throw new AccessDeniedException("Four-eyes policy violation: A second authorized reviewer must publish the national code.");
-        }
+        // Remove 4-eyes self-review block so a single reviewer can confirm and publish.
 
         // Mint authoritative Semi-Significant National Material Code with ISO 7064 MOD 37,36 checksum
         Map<String, Object> attrs = new HashMap<>();

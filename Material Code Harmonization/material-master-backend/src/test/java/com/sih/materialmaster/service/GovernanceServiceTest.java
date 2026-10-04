@@ -95,17 +95,25 @@ class GovernanceServiceTest {
     }
 
     @Test
-    @DisplayName("Approve mapping with 4-eyes validation & mint national code when group is PROPOSED")
+    @DisplayName("Approve mapping auto-mints and publishes the group immediately")
     void testDecideMapping_Approve() {
         when(reviewerAssignmentRepository.findCategoryIdsByUserId(anyLong())).thenReturn(java.util.List.of(1L));
         when(mappingRepository.findById(500L)).thenReturn(Optional.of(mapping));
         when(mappingRepository.save(any(MaterialMapping.class))).thenAnswer(inv -> inv.getArgument(0));
 
+        // Auto-mint stubs (called inside applyDecision when group is PROPOSED)
+        when(groupRepository.findLockedById(100L)).thenReturn(Optional.of(group));
+        when(mappingRepository.findByGroup_GroupId(100L)).thenReturn(java.util.List.of(mapping));
+        when(codeGenerator.mintNationalCode(any(), any(), any())).thenReturn("NUMM-401416-CS-050-S40-000100-K");
+        when(groupRepository.save(any(MaterialGroup.class))).thenAnswer(inv -> inv.getArgument(0));
+
         MaterialMapping approved = governanceService.decideMapping(500L, reviewerIocl, "CONFIRMED", "Verified specification equivalence");
 
         assertNotNull(approved);
         assertEquals("CONFIRMED", approved.getStatus());
-        assertEquals("PROPOSED", group.getStatus(), "Group remains PROPOSED until Senior Reviewer publishes and mints");
+        // Group is now auto-minted to ACTIVE on confirmation
+        assertEquals("ACTIVE", group.getStatus(), "Group should auto-publish on confirmation");
+        assertEquals("NUMM-401416-CS-050-S40-000100-K", group.getCommonMaterialCode());
 
         verify(auditService).logEvent(
                 eq(reviewerIocl),
@@ -115,26 +123,11 @@ class GovernanceServiceTest {
                 eq("status: PENDING"),
                 anyString()
         );
-
-        // Step 2: Senior Reviewer mints the code
-        User seniorReviewer = new User();
-        seniorReviewer.setUserId(99L);
-        seniorReviewer.setRole("SENIOR_REVIEWER");
-
-        when(groupRepository.findLockedById(100L)).thenReturn(Optional.of(group));
-        when(mappingRepository.findByGroup_GroupId(100L)).thenReturn(java.util.List.of(approved));
-        when(codeGenerator.mintNationalCode(any(), any(), any())).thenReturn("NUMM-401416-CS-050-S40-000100-K");
-        when(groupRepository.save(any(MaterialGroup.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        String code = governanceService.mintGroup(100L, seniorReviewer);
-        assertEquals("NUMM-401416-CS-050-S40-000100-K", code);
-        assertEquals("ACTIVE", group.getStatus());
-        assertEquals("NUMM-401416-CS-050-S40-000100-K", group.getCommonMaterialCode());
     }
 
     @Test
-    @DisplayName("Reject approval if reviewer belongs to the same CPSE (Conflict of Interest prevention)")
-    void testDecideMapping_ConflictOfInterestBlocked() {
+    @DisplayName("Same-CPSE reviewer can approve without conflict-of-interest block")
+    void testDecideMapping_SameCpseReviewerAllowed() {
         User reviewerOngc = new User();
         reviewerOngc.setUserId(1L);
         reviewerOngc.setName("Pavan ONGC");
@@ -144,13 +137,18 @@ class GovernanceServiceTest {
 
         when(reviewerAssignmentRepository.findCategoryIdsByUserId(anyLong())).thenReturn(java.util.List.of(1L));
         when(mappingRepository.findById(500L)).thenReturn(Optional.of(mapping));
+        when(mappingRepository.save(any(MaterialMapping.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        com.sih.materialmaster.exception.ConflictOfInterestException ex =
-                assertThrows(com.sih.materialmaster.exception.ConflictOfInterestException.class, () ->
-                        governanceService.decideMapping(500L, reviewerOngc, "CONFIRMED", "Self-approval attempt")
-                );
+        // Auto-mint stubs
+        when(groupRepository.findLockedById(100L)).thenReturn(Optional.of(group));
+        when(mappingRepository.findByGroup_GroupId(100L)).thenReturn(java.util.List.of(mapping));
+        when(codeGenerator.mintNationalCode(any(), any(), any())).thenReturn("NUMM-401416-CS-050-S40-000100-K");
+        when(groupRepository.save(any(MaterialGroup.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        assertTrue(ex.getMessage().contains("Conflict of Interest"), "Self-approval by submitting CPSE must be blocked");
+        // Should NOT throw — COI restriction removed
+        MaterialMapping approved = governanceService.decideMapping(500L, reviewerOngc, "CONFIRMED", "Self-CPSE approval is fine now");
+        assertNotNull(approved);
+        assertEquals("CONFIRMED", approved.getStatus());
     }
 
     @Test
