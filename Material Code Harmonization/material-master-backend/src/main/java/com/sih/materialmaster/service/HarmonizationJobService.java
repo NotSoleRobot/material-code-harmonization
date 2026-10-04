@@ -19,12 +19,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Service
 public class HarmonizationJobService {
@@ -41,6 +43,8 @@ public class HarmonizationJobService {
     private final TransactionTemplate transactionTemplate;
     private final EntityManager entityManager;
     private final Executor harmonizationExecutor;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Map<Long, List<SseEmitter>> emitters = new ConcurrentHashMap<>();
 
     private static final int INGEST_BATCH_SIZE = 500;
     private static final int HARMONIZATION_BATCH_SIZE = 150;
@@ -96,6 +100,7 @@ public class HarmonizationJobService {
         int imported = 0;
         int skipped = 0;
         List<CompletableFuture<BatchStats>> harmonizationTasks = new ArrayList<>();
+        List<String> collectedDiagnostics = new ArrayList<>();
         try {
             int expectedTotal = countCsvRecords(spoolFile);
             try (BufferedReader reader = Files.newBufferedReader(spoolFile, StandardCharsets.UTF_8);
@@ -111,6 +116,10 @@ public class HarmonizationJobService {
                     PersistResult result = persistBatch(batch, operatorCpseId);
                     imported += result.materialIds().size();
                     skipped += result.skipped();
+                    if (collectedDiagnostics.size() < 100) {
+                        int remaining = 100 - collectedDiagnostics.size();
+                        collectedDiagnostics.addAll(result.diagnostics().subList(0, Math.min(remaining, result.diagnostics().size())));
+                    }
                     dispatchHarmonization(result.materialIds(), autoHarmonize, harmonizationTasks);
                     updateIngestionProgress(jobId, "PROCESSING_INGESTION", expectedTotal, total, imported, skipped);
                     batch.clear();
@@ -120,6 +129,10 @@ public class HarmonizationJobService {
                 PersistResult result = persistBatch(batch, operatorCpseId);
                 imported += result.materialIds().size();
                 skipped += result.skipped();
+                if (collectedDiagnostics.size() < 100) {
+                    int remaining = 100 - collectedDiagnostics.size();
+                    collectedDiagnostics.addAll(result.diagnostics().subList(0, Math.min(remaining, result.diagnostics().size())));
+                }
                 dispatchHarmonization(result.materialIds(), autoHarmonize, harmonizationTasks);
             }
             updateIngestionProgress(jobId, autoHarmonize ? "HARMONIZING" : "COMPLETED",
@@ -129,7 +142,7 @@ public class HarmonizationJobService {
             for (CompletableFuture<BatchStats> task : harmonizationTasks) {
                 combined = combined.add(task.join());
             }
-            finishIngestionJob(jobId, total, imported, skipped, combined, autoHarmonize);
+            finishIngestionJob(jobId, total, imported, skipped, combined, autoHarmonize, collectedDiagnostics);
             User user = userRepository.findById(userId).orElse(null);
             auditService.logEvent(user, "BULK_INGEST", "MATERIAL", 0L, null,
                     "Imported " + imported + " rows from CSV (" + skipped + " skipped)");
@@ -187,12 +200,30 @@ public class HarmonizationJobService {
     private PersistResult persistBatch(List<IngestionRow> rows, Long operatorCpseId) {
         PersistResult result = transactionTemplate.execute(status -> {
             List<Long> ids = new ArrayList<>(rows.size());
+            List<String> diagnostics = new ArrayList<>();
             int rejected = 0;
             Cpse operatorCpse = operatorCpseId == null ? null
                     : cpseRepository.findById(operatorCpseId).orElse(null);
             for (IngestionRow row : rows) {
-                if (row.description().isBlank() || row.materialCode().isBlank() || row.category().isBlank()) {
+                if (row.description().isBlank()) {
                     rejected++;
+                    if (diagnostics.size() < 100) {
+                        diagnostics.add("Row " + row.rowNumber() + " (" + (row.materialCode().isBlank() ? "unknown code" : row.materialCode()) + "): Missing mandatory material description");
+                    }
+                    continue;
+                }
+                if (row.materialCode().isBlank()) {
+                    rejected++;
+                    if (diagnostics.size() < 100) {
+                        diagnostics.add("Row " + row.rowNumber() + ": Missing mandatory plant material code");
+                    }
+                    continue;
+                }
+                if (row.category().isBlank()) {
+                    rejected++;
+                    if (diagnostics.size() < 100) {
+                        diagnostics.add("Row " + row.rowNumber() + " (" + row.materialCode() + "): Missing material category");
+                    }
                     continue;
                 }
                 Cpse cpse = operatorCpse;
@@ -202,6 +233,9 @@ public class HarmonizationJobService {
                 }
                 if (cpse == null) {
                     rejected++;
+                    if (diagnostics.size() < 100) {
+                        diagnostics.add("Row " + row.rowNumber() + " (" + row.materialCode() + "): Enterprise '" + row.cpseName() + "' not recognized in registry");
+                    }
                     continue;
                 }
                 Material material = materialRepository
@@ -219,7 +253,7 @@ public class HarmonizationJobService {
             }
             entityManager.flush();
             entityManager.clear();
-            return new PersistResult(ids, rejected);
+            return new PersistResult(ids, rejected, diagnostics);
         });
         if (result == null) throw new IllegalStateException("CSV batch transaction returned no result");
         return result;
@@ -227,6 +261,7 @@ public class HarmonizationJobService {
 
     private IngestionRow toIngestionRow(CSVRecord record) {
         return new IngestionRow(
+                record.getRecordNumber(),
                 value(record, "cpse_name", 0), value(record, "cpse_material_code", 1),
                 value(record, "description", 2), value(record, "specification", 3),
                 value(record, "unit_of_measure", 4), value(record, "category", 5),
@@ -268,12 +303,13 @@ public class HarmonizationJobService {
             job.setProcessedItems(processed);
             job.setImportedItems(imported);
             job.setSkippedItems(skipped);
-            jobRepository.save(job);
+            HarmonizationJob saved = jobRepository.save(job);
+            notifyEmitters(saved);
         });
     }
 
     private void finishIngestionJob(Long jobId, int total, int imported, int skipped,
-                                    BatchStats stats, boolean autoHarmonize) {
+                                    BatchStats stats, boolean autoHarmonize, List<String> diagnostics) {
         jobRepository.findById(jobId).ifPresent(job -> {
             job.setTotalItems(total);
             job.setProcessedItems(total);
@@ -286,8 +322,16 @@ public class HarmonizationJobService {
             if (stats.failures() > 0) {
                 job.setErrorMessage(stats.failures() + " material(s) failed. First failure: " + stats.firstFailure());
             }
+            if (diagnostics != null && !diagnostics.isEmpty()) {
+                try {
+                    job.setDiagnostics(objectMapper.writeValueAsString(diagnostics));
+                } catch (Exception ignored) {
+                    job.setDiagnostics(String.join("\n", diagnostics));
+                }
+            }
             job.setCompletedAt(LocalDateTime.now());
-            jobRepository.save(job);
+            HarmonizationJob saved = jobRepository.save(job);
+            notifyEmitters(saved);
         });
     }
 
@@ -296,13 +340,14 @@ public class HarmonizationJobService {
             job.setStatus("FAILED");
             job.setErrorMessage(message == null ? "Background ingestion failed" : message);
             job.setCompletedAt(LocalDateTime.now());
-            jobRepository.save(job);
+            HarmonizationJob saved = jobRepository.save(job);
+            notifyEmitters(saved);
         });
     }
 
-    private record IngestionRow(String cpseName, String materialCode, String description,
+    private record IngestionRow(long rowNumber, String cpseName, String materialCode, String description,
                                 String specification, String uom, String category, String price) {}
-    private record PersistResult(List<Long> materialIds, int skipped) {}
+    private record PersistResult(List<Long> materialIds, int skipped, List<String> diagnostics) {}
     private record BatchStats(int auto, int review, int distinct, int failures, String firstFailure) {
         BatchStats add(BatchStats other) {
             return new BatchStats(auto + other.auto, review + other.review, distinct + other.distinct,
@@ -319,48 +364,47 @@ public class HarmonizationJobService {
             int failures = 0;
             String firstFailure = null;
 
-            // Matching cost grows with both query and candidate counts. Keep each
-            // request bounded so the worker remains responsive on realistic files.
             final int batchSize = 10;
             for (int start = 0; start < materialIds.size(); start += batchSize) {
-                    int end = Math.min(start + batchSize, materialIds.size());
-                    List<Long> batchIds = materialIds.subList(start, end);
-                    harmonizationService.extractAttributesForMaterials(batchIds);
-                    Map<Long, com.sih.materialmaster.dto.FindMatchesResponse> batchMatches =
-                            harmonizationService.prepareBatchMatches(batchIds);
+                int end = Math.min(start + batchSize, materialIds.size());
+                List<Long> batchIds = materialIds.subList(start, end);
+                harmonizationService.extractAttributesForMaterials(batchIds);
+                Map<Long, com.sih.materialmaster.dto.FindMatchesResponse> batchMatches =
+                        harmonizationService.prepareBatchMatches(batchIds);
 
-                    for (int offset = 0; offset < batchIds.size(); offset++) {
-                        int i = start + offset;
-                        Long matId = batchIds.get(offset);
-                        try {
-                            var res = harmonizationService.harmonizeMaterial(matId, batchMatches.get(matId));
-                            if ("AUTO_CONFIRM".equalsIgnoreCase(res.getRoutingDecision())) {
-                                auto++;
-                            } else if ("REVIEW_REQUIRED".equalsIgnoreCase(res.getRoutingDecision())) {
-                                review++;
-                            } else {
-                                distinct++;
-                            }
-                        } catch (Exception ex) {
-                            log.warn("Harmonization failed for item {}: {}", matId, ex.getMessage());
-                            failures++;
-                            if (firstFailure == null) {
-                                firstFailure = "Material " + matId + ": " + ex.getMessage();
-                            }
+                for (int offset = 0; offset < batchIds.size(); offset++) {
+                    int i = start + offset;
+                    Long matId = batchIds.get(offset);
+                    try {
+                        var res = harmonizationService.harmonizeMaterial(matId, batchMatches.get(matId));
+                        if ("AUTO_CONFIRM".equalsIgnoreCase(res.getRoutingDecision())) {
+                            auto++;
+                        } else if ("REVIEW_REQUIRED".equalsIgnoreCase(res.getRoutingDecision())) {
+                            review++;
+                        } else {
+                            distinct++;
                         }
+                    } catch (Exception ex) {
+                        log.warn("Harmonization failed for item {}: {}", matId, ex.getMessage());
+                        failures++;
+                        if (firstFailure == null) {
+                            firstFailure = "Material " + matId + ": " + ex.getMessage();
+                        }
+                    }
 
-                        if ((i + 1) % 5 == 0 || (i + 1) == materialIds.size()) {
-                            HarmonizationJob job = jobRepository.findById(jobId).orElse(null);
-                            if (job != null) {
-                                job.setProcessedItems(i + 1);
-                                job.setAutoHarmonized(auto);
-                                job.setPendingReview(review);
-                                job.setDistinctMaterials(distinct);
-                                jobRepository.save(job);
-                            }
+                    if ((i + 1) % 5 == 0 || (i + 1) == materialIds.size()) {
+                        HarmonizationJob job = jobRepository.findById(jobId).orElse(null);
+                        if (job != null) {
+                            job.setProcessedItems(i + 1);
+                            job.setAutoHarmonized(auto);
+                            job.setPendingReview(review);
+                            job.setDistinctMaterials(distinct);
+                            HarmonizationJob saved = jobRepository.save(job);
+                            notifyEmitters(saved);
                         }
                     }
                 }
+            }
 
             HarmonizationJob job = jobRepository.findById(jobId).orElse(null);
             if (job != null) {
@@ -373,7 +417,8 @@ public class HarmonizationJobService {
                     job.setErrorMessage(failures + " material(s) failed. First failure: " + firstFailure);
                 }
                 job.setCompletedAt(LocalDateTime.now());
-                jobRepository.save(job);
+                HarmonizationJob saved = jobRepository.save(job);
+                notifyEmitters(saved);
             }
         } catch (Exception e) {
             log.error("Job {} failed: {}", jobId, e.getMessage(), e);
@@ -382,8 +427,85 @@ public class HarmonizationJobService {
                 job.setStatus("FAILED");
                 job.setErrorMessage(e.getMessage());
                 job.setCompletedAt(LocalDateTime.now());
-                jobRepository.save(job);
+                HarmonizationJob saved = jobRepository.save(job);
+                notifyEmitters(saved);
             }
+        }
+    }
+
+    public SseEmitter subscribe(Long jobId) {
+        SseEmitter emitter = new SseEmitter(180_000L);
+        emitters.computeIfAbsent(jobId, k -> new CopyOnWriteArrayList<>()).add(emitter);
+
+        Runnable cleanup = () -> {
+            List<SseEmitter> list = emitters.get(jobId);
+            if (list != null) {
+                list.remove(emitter);
+                if (list.isEmpty()) emitters.remove(jobId);
+            }
+        };
+        emitter.onCompletion(cleanup);
+        emitter.onTimeout(cleanup);
+        emitter.onError(e -> cleanup.run());
+
+        HarmonizationJob job = jobRepository.findById(jobId).orElse(null);
+        if (job != null) {
+            try {
+                emitter.send(SseEmitter.event().name("job-status").data(toJobStatusMap(job)));
+                if ("COMPLETED".equals(job.getStatus()) || "FAILED".equals(job.getStatus())) {
+                    emitter.complete();
+                }
+            } catch (Exception ex) {
+                cleanup.run();
+            }
+        }
+        return emitter;
+    }
+
+    private void notifyEmitters(HarmonizationJob job) {
+        if (job == null || job.getJobId() == null) return;
+        List<SseEmitter> list = emitters.get(job.getJobId());
+        if (list == null || list.isEmpty()) return;
+
+        Map<String, Object> data = toJobStatusMap(job);
+        boolean terminal = "COMPLETED".equals(job.getStatus()) || "FAILED".equals(job.getStatus());
+        for (SseEmitter emitter : list) {
+            try {
+                emitter.send(SseEmitter.event().name("job-status").data(data));
+                if (terminal) {
+                    emitter.complete();
+                }
+            } catch (Exception e) {
+                emitter.completeWithError(e);
+            }
+        }
+        if (terminal) {
+            emitters.remove(job.getJobId());
+        }
+    }
+
+    public Map<String, Object> toJobStatusMap(HarmonizationJob job) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("jobId", job.getJobId());
+        response.put("status", job.getStatus());
+        response.put("totalItems", job.getTotalItems());
+        response.put("processedItems", job.getProcessedItems());
+        response.put("importedItems", job.getImportedItems());
+        response.put("skippedItems", job.getSkippedItems());
+        response.put("autoHarmonized", job.getAutoHarmonized());
+        response.put("pendingReview", job.getPendingReview());
+        response.put("distinctMaterials", job.getDistinctMaterials());
+        response.put("errorMessage", job.getErrorMessage());
+        response.put("diagnostics", parseDiagnostics(job.getDiagnostics()));
+        return response;
+    }
+
+    public List<String> parseDiagnostics(String raw) {
+        if (raw == null || raw.isBlank()) return List.of();
+        try {
+            return objectMapper.readValue(raw, new TypeReference<List<String>>() {});
+        } catch (Exception ignored) {
+            return Arrays.stream(raw.split("\n")).filter(s -> !s.isBlank()).toList();
         }
     }
 

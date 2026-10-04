@@ -31,3 +31,8 @@ Material Code Harmonization/material-master-backend/data/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Presentation build artifacts and scratch output
+.chart-data-*/
+.presentation-build/
+output/

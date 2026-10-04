@@ -1,0 +1,63 @@
+{
+  "date": "2026-09-28",
+  "backend_suites": [
+    {
+      "name": "com.sih.materialmaster.SecurityMatrixTest",
+      "tests": "39",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.sih.materialmaster.service.AnalyticsServiceTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.sih.materialmaster.service.AuditServiceTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.sih.materialmaster.service.GovernanceServiceTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.sih.materialmaster.service.HarmonizationServiceTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.sih.materialmaster.service.NationalCodeGeneratorTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.sih.materialmaster.util.Iso7064Mod3736Test",
+      "tests": "14",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "backend_totals": {
+    "tests": 68,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "matching_pytest_observed": "11 passed in 26.91s",
+  "english_dictionary_check_observed": "English UI dictionary OK: 42 used keys, 55 available keys",
+  "scope": "Backend services use mocked repositories; SecurityMatrixTest uses MatrixProbeController. No live database workflow was executed."
+}

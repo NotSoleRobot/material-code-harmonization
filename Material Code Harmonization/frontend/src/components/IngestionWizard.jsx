@@ -98,14 +98,19 @@ export function IngestionWizard() {
   const [jobResult, setJobResult] = useState(null);
   const [uploadResult, setUploadResult] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [jobDiagnostics, setJobDiagnostics] = useState([]);
 
   const fileInputRef = useRef();
   const pollIntervalRef = useRef(null);
+  const sseCleanupRef = useRef(null);
 
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
+      }
+      if (sseCleanupRef.current) {
+        sseCleanupRef.current();
       }
     };
   }, []);
@@ -205,7 +210,28 @@ export function IngestionWizard() {
     return Papa.unparse({ fields: canonicalHeaders, data: transformed });
   };
 
-  // Asynchronous ingestion and job polling.
+  const handleJobUpdate = (job) => {
+    if (!job) return;
+    const total = job.totalItems || rows.length;
+    const processed = job.processedItems || 0;
+    setJobStatus(job.status);
+    setJobProgress(total > 0 ? Math.round((processed / total) * 100) : 50);
+    if (job.diagnostics && Array.isArray(job.diagnostics) && job.diagnostics.length > 0) {
+      setJobDiagnostics(job.diagnostics);
+    }
+
+    if (job.status === "COMPLETED" || job.status === "FAILED") {
+      setJobResult(job);
+      setIsSubmitting(false);
+      if (job.status === "COMPLETED") {
+        queryClient.invalidateQueries({ queryKey: ["materials"] });
+        queryClient.invalidateQueries({ queryKey: ["codesSearch"] });
+        queryClient.invalidateQueries({ queryKey: ["mappings"] });
+      }
+    }
+  };
+
+  // Asynchronous ingestion with SSE streaming (polling fallback).
   const handleIngest = async () => {
     setIsSubmitting(true);
     setError(null);
@@ -214,6 +240,7 @@ export function IngestionWizard() {
     setJobId(null);
     setJobStatus(null);
     setJobProgress(0);
+    setJobDiagnostics([]);
 
     const standardCsv = generateStandardCsv();
 
@@ -223,7 +250,7 @@ export function IngestionWizard() {
       if (resp && resp.jobId) {
         setJobId(resp.jobId);
         setJobStatus(resp.status || "QUEUED");
-        pollJob(resp.jobId);
+        subscribeToJob(resp.jobId);
       } else {
         // Synchronous completion response
         setJobResult(resp);
@@ -236,28 +263,33 @@ export function IngestionWizard() {
     }
   };
 
+  const subscribeToJob = (id) => {
+    // Try SSE first; fall back to polling if unavailable
+    const cleanup = api.streamJobEvents(
+      id,
+      (job) => handleJobUpdate(job),
+      () => {
+        // SSE failed — fall back to interval polling
+        pollJob(id);
+      },
+    );
+    if (cleanup) {
+      sseCleanupRef.current = cleanup;
+    } else {
+      pollJob(id);
+    }
+  };
+
   const pollJob = (id) => {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     pollIntervalRef.current = setInterval(async () => {
       try {
         const job = await api.getJobStatus(id);
         if (job) {
-          const total = job.totalItems || rows.length;
-          const processed = job.processedItems || 0;
-          setJobStatus(job.status);
-          setJobProgress(total > 0 ? Math.round((processed / total) * 100) : 50);
-
+          handleJobUpdate(job);
           if (job.status === "COMPLETED" || job.status === "FAILED") {
             clearInterval(pollIntervalRef.current);
             pollIntervalRef.current = null;
-            setJobStatus(job.status);
-            setJobResult(job);
-            setIsSubmitting(false);
-            if (job.status === "COMPLETED") {
-              queryClient.invalidateQueries({ queryKey: ["materials"] });
-              queryClient.invalidateQueries({ queryKey: ["codesSearch"] });
-              queryClient.invalidateQueries({ queryKey: ["mappings"] });
-            }
           }
         }
       } catch (err) {
@@ -695,8 +727,8 @@ export function IngestionWizard() {
                           Open-domain categories are accepted under GENERAL_MRO; only structurally incomplete or unknown-enterprise rows are skipped.
                         </div>
                         <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.76rem" }}>
-                          {(uploadResult.messages || [])
-                            .filter((message) => message.startsWith("Row "))
+                          {((jobDiagnostics && jobDiagnostics.length > 0 ? jobDiagnostics : uploadResult?.messages) || [])
+                            .filter((message) => typeof message === "string" && message.startsWith("Row "))
                             .map((message, index) => <li key={`${index}-${message}`}>{message}</li>)}
                         </ul>
                       </div>

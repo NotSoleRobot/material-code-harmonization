@@ -1,0 +1,670 @@
+{
+  "extraction_examples": [
+    {
+      "input": {
+        "category": "PIPE",
+        "description": "CS SEAMLESS PIPE 50MM SCH40 ASTM A106 GRB",
+        "specification": "ASTM A106"
+      },
+      "output": {
+        "attributes": {
+          "grade": "B",
+          "material": "CS",
+          "nominal_size_mm": 50.0,
+          "schedule": "SCH40",
+          "standard": "ASTMA106"
+        },
+        "category": "PIPE",
+        "identity_critical_present": true,
+        "material_id": null,
+        "missing_identity_keys": []
+      }
+    },
+    {
+      "input": {
+        "category": "PIPE",
+        "description": "CARBON STEEL PIPE DN50 SCHEDULE 40 GR.B IS1239",
+        "specification": "IS 1239"
+      },
+      "output": {
+        "attributes": {
+          "grade": "B",
+          "material": "CS",
+          "nominal_size_mm": 50.0,
+          "schedule": null,
+          "standard": "IS1239"
+        },
+        "category": "PIPE",
+        "identity_critical_present": true,
+        "material_id": null,
+        "missing_identity_keys": []
+      }
+    },
+    {
+      "input": {
+        "category": "PIPE",
+        "description": "SS 316L PIPE 1IN SCH10S ASTM A312",
+        "specification": "ASTM A312"
+      },
+      "output": {
+        "attributes": {
+          "grade": null,
+          "material": "SS",
+          "nominal_size_mm": null,
+          "schedule": null,
+          "standard": "ASTMA312"
+        },
+        "category": "PIPE",
+        "identity_critical_present": true,
+        "material_id": null,
+        "missing_identity_keys": []
+      }
+    },
+    {
+      "input": {
+        "category": "VALVE",
+        "description": "GATE VALVE CS CLASS150 2INCH RF API600",
+        "specification": "API 600"
+      },
+      "output": {
+        "attributes": {
+          "body_material": "CS",
+          "nominal_size_mm": 50.0,
+          "pressure_class": "CLASS150",
+          "standard": "API600",
+          "valve_type": "GATE"
+        },
+        "category": "VALVE",
+        "identity_critical_present": true,
+        "material_id": null,
+        "missing_identity_keys": []
+      }
+    },
+    {
+      "input": {
+        "category": "FLANGE",
+        "description": "WELD-NECK FLANGE SS304 DN50 150# ASME B16.5",
+        "specification": ""
+      },
+      "output": {
+        "attributes": {
+          "flange_type": "WELDNECK",
+          "material": "SS304",
+          "nominal_size_mm": 50.0,
+          "pressure_class": "CLASS150",
+          "standard": "ASMEB16.5"
+        },
+        "category": "FLANGE",
+        "identity_critical_present": true,
+        "material_id": null,
+        "missing_identity_keys": []
+      }
+    },
+    {
+      "input": {
+        "category": "PIPE",
+        "description": "SS PIPE 2 inch SCH40 TP304 ASTM A312",
+        "specification": ""
+      },
+      "output": {
+        "attributes": {
+          "grade": "TP304",
+          "material": "SS",
+          "nominal_size_mm": 50.0,
+          "schedule": "SCH40",
+          "standard": "ASTMA312"
+        },
+        "category": "PIPE",
+        "identity_critical_present": true,
+        "material_id": null,
+        "missing_identity_keys": []
+      }
+    },
+    {
+      "input": {
+        "category": "PIPE",
+        "description": "STAINLESS STEEL PIPE 50mm SCH40 TYPE 304 ASTM A312",
+        "specification": ""
+      },
+      "output": {
+        "attributes": {
+          "grade": "TP304",
+          "material": "SS",
+          "nominal_size_mm": 50.0,
+          "schedule": "SCH40",
+          "standard": "ASTMA312"
+        },
+        "category": "PIPE",
+        "identity_critical_present": true,
+        "material_id": null,
+        "missing_identity_keys": []
+      }
+    },
+    {
+      "input": {
+        "category": "BEARING",
+        "description": "BALL BEARING 6308 2RS C3",
+        "specification": "ISO 15"
+      },
+      "output": {
+        "attributes": {
+          "bearing_number": "6308",
+          "bearing_type": null,
+          "bore_mm": null,
+          "seal_type": "2RS"
+        },
+        "category": "BEARING",
+        "identity_critical_present": false,
+        "material_id": null,
+        "missing_identity_keys": [
+          "bearing_type"
+        ]
+      }
+    }
+  ],
+  "comparison_examples": [
+    {
+      "a": {
+        "category": "PIPE",
+        "description": "CS SEAMLESS PIPE 50MM SCH40 ASTM A106 GRB",
+        "specification": ""
+      },
+      "b": {
+        "category": "PIPE",
+        "description": "CS SEAMLESS PIPE 200MM SCH40 ASTM A106 GRB",
+        "specification": ""
+      },
+      "output": {
+        "predicted_relationship": "VARIANT",
+        "label_probability": 0.9867,
+        "match_probability": 0.0,
+        "confidence": 0.0,
+        "confidence_tier": "LOW",
+        "class_probabilities": {
+          "EXACT_DUPLICATE": 0.0,
+          "FUNCTIONALLY_EQUIVALENT": 0.0,
+          "NEAR_DUPLICATE": 0.0,
+          "NEEDS_REVIEW": 0.0,
+          "NOT_A_MATCH": 0.0133,
+          "VARIANT": 0.9867
+        },
+        "explanation": {
+          "checks": [
+            "Same material: CS",
+            "Same grade: B",
+            "Same standard: ASTMA106",
+            "Same schedule: SCH40"
+          ],
+          "warnings": [],
+          "conflicts": [
+            "Nominal Size Mm conflict (variant_critical): 50.0 vs 200.0"
+          ]
+        },
+        "features": {
+          "same_category": 1.0,
+          "n_attrs_compared": 5.0,
+          "n_attrs_agree": 4.0,
+          "n_attrs_conflict": 1.0,
+          "frac_agree": 0.8,
+          "identity_critical_conflict": 0.0,
+          "variant_critical_conflict": 1.0,
+          "any_type_conflict": 1.0,
+          "identity_critical_missing": 0.0,
+          "variant_critical_missing": 0.0,
+          "n_critical_missing": 0.0,
+          "fuzz_ratio": 0.963855421686747,
+          "fuzz_token_sort": 0.963855421686747,
+          "fuzz_partial": 0.951219512195122,
+          "len_ratio": 0.9761904761904762,
+          "tfidf_word_cosine": 0.5627250877920891,
+          "tfidf_char_cosine": 0.9249150433501686
+        }
+      }
+    },
+    {
+      "a": {
+        "category": "PIPE",
+        "description": "CS SEAMLESS PIPE 50MM SCH40 ASTM A106 GRB",
+        "specification": ""
+      },
+      "b": {
+        "category": "PIPE",
+        "description": "SS SEAMLESS PIPE 50MM SCH40 ASTM A106 GRB",
+        "specification": ""
+      },
+      "output": {
+        "predicted_relationship": "NOT_A_MATCH",
+        "label_probability": 0.7833,
+        "match_probability": 0.0033,
+        "confidence": 0.0033,
+        "confidence_tier": "LOW",
+        "class_probabilities": {
+          "EXACT_DUPLICATE": 0.0,
+          "FUNCTIONALLY_EQUIVALENT": 0.0,
+          "NEAR_DUPLICATE": 0.0033,
+          "NEEDS_REVIEW": 0.17,
+          "NOT_A_MATCH": 0.7833,
+          "VARIANT": 0.0433
+        },
+        "explanation": {
+          "checks": [
+            "Same nominal size mm: 50.0",
+            "Same grade: B",
+            "Same standard: ASTMA106",
+            "Same schedule: SCH40"
+          ],
+          "warnings": [],
+          "conflicts": [
+            "Material conflict (identity_critical): CS vs SS"
+          ]
+        },
+        "features": {
+          "same_category": 1.0,
+          "n_attrs_compared": 5.0,
+          "n_attrs_agree": 4.0,
+          "n_attrs_conflict": 1.0,
+          "frac_agree": 0.8,
+          "identity_critical_conflict": 1.0,
+          "variant_critical_conflict": 0.0,
+          "any_type_conflict": 1.0,
+          "identity_critical_missing": 0.0,
+          "variant_critical_missing": 0.0,
+          "n_critical_missing": 0.0,
+          "fuzz_ratio": 0.975609756097561,
+          "fuzz_token_sort": 0.926829268292683,
+          "fuzz_partial": 0.9876543209876543,
+          "len_ratio": 1.0,
+          "tfidf_word_cosine": 0.955366900560352,
+          "tfidf_char_cosine": 0.9622421906298585
+        }
+      }
+    },
+    {
+      "a": {
+        "category": "PIPE",
+        "description": "CS SEAMLESS PIPE 50MM SCH40 ASTM A106 GRB",
+        "specification": "ASTM A106"
+      },
+      "b": {
+        "category": "PIPE",
+        "description": "CARBON STEEL PIPE DN50 SCHEDULE 40 GR.B IS1239",
+        "specification": "IS 1239"
+      },
+      "output": {
+        "predicted_relationship": "NOT_A_MATCH",
+        "label_probability": 0.66,
+        "match_probability": 0.34,
+        "confidence": 0.34,
+        "confidence_tier": "LOW",
+        "class_probabilities": {
+          "EXACT_DUPLICATE": 0.0,
+          "FUNCTIONALLY_EQUIVALENT": 0.31,
+          "NEAR_DUPLICATE": 0.03,
+          "NEEDS_REVIEW": 0.0,
+          "NOT_A_MATCH": 0.66,
+          "VARIANT": 0.0
+        },
+        "explanation": {
+          "checks": [
+            "Same material: CS",
+            "Same nominal size mm: 50.0",
+            "Same grade: B"
+          ],
+          "warnings": [
+            "Schedule not stated on one side -- cannot verify"
+          ],
+          "conflicts": [
+            "Standard conflict (minor): ASTMA106 vs IS1239"
+          ]
+        },
+        "features": {
+          "same_category": 1.0,
+          "n_attrs_compared": 4.0,
+          "n_attrs_agree": 3.0,
+          "n_attrs_conflict": 1.0,
+          "frac_agree": 0.75,
+          "identity_critical_conflict": 0.0,
+          "variant_critical_conflict": 0.0,
+          "any_type_conflict": 0.0,
+          "identity_critical_missing": 0.0,
+          "variant_critical_missing": 1.0,
+          "n_critical_missing": 1.0,
+          "fuzz_ratio": 0.5142857142857142,
+          "fuzz_token_sort": 0.4380952380952381,
+          "fuzz_partial": 0.5531914893617021,
+          "len_ratio": 0.9444444444444444,
+          "tfidf_word_cosine": 0.03190094479407002,
+          "tfidf_char_cosine": 0.1318764384682344
+        }
+      }
+    },
+    {
+      "a": {
+        "category": "PIPE",
+        "description": "SS PIPE 2 inch SCH40 TP304 ASTM A312",
+        "specification": ""
+      },
+      "b": {
+        "category": "PIPE",
+        "description": "STAINLESS STEEL PIPE 50mm SCH40 TYPE 304 ASTM A312",
+        "specification": ""
+      },
+      "output": {
+        "predicted_relationship": "NEAR_DUPLICATE",
+        "label_probability": 0.9967,
+        "match_probability": 0.9967,
+        "confidence": 0.9967,
+        "confidence_tier": "HIGH",
+        "class_probabilities": {
+          "EXACT_DUPLICATE": 0.0,
+          "FUNCTIONALLY_EQUIVALENT": 0.0,
+          "NEAR_DUPLICATE": 0.9967,
+          "NEEDS_REVIEW": 0.0033,
+          "NOT_A_MATCH": 0.0,
+          "VARIANT": 0.0
+        },
+        "explanation": {
+          "checks": [
+            "Same material: SS",
+            "Same nominal size mm: 50.0",
+            "Same grade: TP304",
+            "Same standard: ASTMA312",
+            "Same schedule: SCH40"
+          ],
+          "warnings": [],
+          "conflicts": []
+        },
+        "features": {
+          "same_category": 1.0,
+          "n_attrs_compared": 5.0,
+          "n_attrs_agree": 5.0,
+          "n_attrs_conflict": 0.0,
+          "frac_agree": 1.0,
+          "identity_critical_conflict": 0.0,
+          "variant_critical_conflict": 0.0,
+          "any_type_conflict": 0.0,
+          "identity_critical_missing": 0.0,
+          "variant_critical_missing": 0.0,
+          "n_critical_missing": 0.0,
+          "fuzz_ratio": 0.6976744186046511,
+          "fuzz_token_sort": 0.627906976744186,
+          "fuzz_partial": 0.7887323943661972,
+          "len_ratio": 0.72,
+          "tfidf_word_cosine": 0.30050696607806443,
+          "tfidf_char_cosine": 0.5982465372352739
+        }
+      }
+    },
+    {
+      "a": {
+        "category": "PIPE",
+        "description": "CS SEAMLESS PIPE 50MM SCH40 ASTM A106 GRB",
+        "specification": ""
+      },
+      "b": {
+        "category": "PIPE",
+        "description": "PIPE 50MM SCH40 ASTM A106 GRB"
+      },
+      "output": {
+        "predicted_relationship": "NEAR_DUPLICATE",
+        "label_probability": 0.7439,
+        "match_probability": 0.7806,
+        "confidence": 0.7806,
+        "confidence_tier": "MEDIUM",
+        "class_probabilities": {
+          "EXACT_DUPLICATE": 0.0368,
+          "FUNCTIONALLY_EQUIVALENT": 0.0,
+          "NEAR_DUPLICATE": 0.7439,
+          "NEEDS_REVIEW": 0.2116,
+          "NOT_A_MATCH": 0.0044,
+          "VARIANT": 0.0033
+        },
+        "explanation": {
+          "checks": [
+            "Same nominal size mm: 50.0",
+            "Same grade: B",
+            "Same standard: ASTMA106",
+            "Same schedule: SCH40"
+          ],
+          "warnings": [
+            "Material not stated on one side -- cannot verify"
+          ],
+          "conflicts": []
+        },
+        "features": {
+          "same_category": 1.0,
+          "n_attrs_compared": 4.0,
+          "n_attrs_agree": 4.0,
+          "n_attrs_conflict": 0.0,
+          "frac_agree": 1.0,
+          "identity_critical_conflict": 0.0,
+          "variant_critical_conflict": 0.0,
+          "any_type_conflict": 0.0,
+          "identity_critical_missing": 1.0,
+          "variant_critical_missing": 0.0,
+          "n_critical_missing": 1.0,
+          "fuzz_ratio": 0.8285714285714285,
+          "fuzz_token_sort": 0.8285714285714285,
+          "fuzz_partial": 1.0,
+          "len_ratio": 0.7073170731707317,
+          "tfidf_word_cosine": 0.9493103169875355,
+          "tfidf_char_cosine": 0.8120143503191569
+        }
+      }
+    }
+  ],
+  "baseline_failure_examples": [
+    {
+      "csv_record_index": 11784,
+      "truth": "VARIANT",
+      "baseline_cosine": 0.3661187783790124,
+      "a": {
+        "category": "PIPE",
+        "description": "Carbon Steel Pipe, 0.5\" Nominal Diameter, SCH40, Seamless",
+        "specification": "ASTM A312 GrB"
+      },
+      "b": {
+        "category": "PIPE",
+        "description": "Pipe - Carbon Steel, Size: 15MM, Schedule: SCH80",
+        "specification": "ASTM A312 GrB"
+      },
+      "output": {
+        "predicted_relationship": "VARIANT",
+        "label_probability": 0.8432,
+        "match_probability": 0.0,
+        "confidence": 0.0,
+        "confidence_tier": "LOW",
+        "class_probabilities": {
+          "EXACT_DUPLICATE": 0.0,
+          "FUNCTIONALLY_EQUIVALENT": 0.0,
+          "NEAR_DUPLICATE": 0.0,
+          "NEEDS_REVIEW": 0.0,
+          "NOT_A_MATCH": 0.1568,
+          "VARIANT": 0.8432
+        },
+        "explanation": {
+          "checks": [
+            "Same material: CS",
+            "Same nominal size mm: 15.0",
+            "Same grade: B",
+            "Same standard: ASTMA312"
+          ],
+          "warnings": [],
+          "conflicts": [
+            "Schedule conflict (variant_critical): SCH40 vs SCH80"
+          ]
+        },
+        "features": {
+          "same_category": 1.0,
+          "n_attrs_compared": 5.0,
+          "n_attrs_agree": 4.0,
+          "n_attrs_conflict": 1.0,
+          "frac_agree": 0.8,
+          "identity_critical_conflict": 0.0,
+          "variant_critical_conflict": 1.0,
+          "any_type_conflict": 1.0,
+          "identity_critical_missing": 0.0,
+          "variant_critical_missing": 0.0,
+          "n_critical_missing": 0.0,
+          "fuzz_ratio": 0.6666666666666667,
+          "fuzz_token_sort": 0.7154471544715447,
+          "fuzz_partial": 0.6,
+          "len_ratio": 0.835820895522388,
+          "tfidf_word_cosine": 0.3661187783790124,
+          "tfidf_char_cosine": 0.5483341526217339
+        }
+      }
+    },
+    {
+      "csv_record_index": 11785,
+      "truth": "VARIANT",
+      "baseline_cosine": 0.4221867361460424,
+      "a": {
+        "category": "PIPE",
+        "description": "CS PIPE 15.0MM SCH40",
+        "specification": "ASTM A312 GrB"
+      },
+      "b": {
+        "category": "PIPE",
+        "description": "CS  PIPE  15MM  SCH40",
+        "specification": "ASTM A312 GrA"
+      },
+      "output": {
+        "predicted_relationship": "VARIANT",
+        "label_probability": 0.9763,
+        "match_probability": 0.0,
+        "confidence": 0.0,
+        "confidence_tier": "LOW",
+        "class_probabilities": {
+          "EXACT_DUPLICATE": 0.0,
+          "FUNCTIONALLY_EQUIVALENT": 0.0,
+          "NEAR_DUPLICATE": 0.0,
+          "NEEDS_REVIEW": 0.0,
+          "NOT_A_MATCH": 0.0237,
+          "VARIANT": 0.9763
+        },
+        "explanation": {
+          "checks": [
+            "Same material: CS",
+            "Same nominal size mm: 15.0",
+            "Same standard: ASTMA312",
+            "Same schedule: SCH40"
+          ],
+          "warnings": [],
+          "conflicts": [
+            "Grade conflict (variant_critical): B vs A"
+          ]
+        },
+        "features": {
+          "same_category": 1.0,
+          "n_attrs_compared": 5.0,
+          "n_attrs_agree": 4.0,
+          "n_attrs_conflict": 1.0,
+          "frac_agree": 0.8,
+          "identity_critical_conflict": 0.0,
+          "variant_critical_conflict": 1.0,
+          "any_type_conflict": 1.0,
+          "identity_critical_missing": 0.0,
+          "variant_critical_missing": 0.0,
+          "n_critical_missing": 0.0,
+          "fuzz_ratio": 0.9393939393939393,
+          "fuzz_token_sort": 0.8787878787878788,
+          "fuzz_partial": 0.9375,
+          "len_ratio": 0.9411764705882353,
+          "tfidf_word_cosine": 0.4221867361460424,
+          "tfidf_char_cosine": 0.8025231782767344
+        }
+      }
+    },
+    {
+      "csv_record_index": 11787,
+      "truth": "VARIANT",
+      "baseline_cosine": 0.5081572843274382,
+      "a": {
+        "category": "PIPE",
+        "description": "Cs  Pipe  0.5\"  Sch80",
+        "specification": "ASTM A312 GrB"
+      },
+      "b": {
+        "category": "PIPE",
+        "description": "Pipe - Carbon Steel,Size: 65MM,Schedule: SCH80",
+        "specification": "ASTM A312 GrB"
+      },
+      "output": {
+        "predicted_relationship": "VARIANT",
+        "label_probability": 0.9755,
+        "match_probability": 0.0,
+        "confidence": 0.0,
+        "confidence_tier": "LOW",
+        "class_probabilities": {
+          "EXACT_DUPLICATE": 0.0,
+          "FUNCTIONALLY_EQUIVALENT": 0.0,
+          "NEAR_DUPLICATE": 0.0,
+          "NEEDS_REVIEW": 0.0,
+          "NOT_A_MATCH": 0.0245,
+          "VARIANT": 0.9755
+        },
+        "explanation": {
+          "checks": [
+            "Same material: CS",
+            "Same grade: B",
+            "Same standard: ASTMA312",
+            "Same schedule: SCH80"
+          ],
+          "warnings": [],
+          "conflicts": [
+            "Nominal Size Mm conflict (variant_critical): 15.0 vs 65.0"
+          ]
+        },
+        "features": {
+          "same_category": 1.0,
+          "n_attrs_compared": 5.0,
+          "n_attrs_agree": 4.0,
+          "n_attrs_conflict": 1.0,
+          "frac_agree": 0.8,
+          "identity_critical_conflict": 0.0,
+          "variant_critical_conflict": 1.0,
+          "any_type_conflict": 1.0,
+          "identity_critical_missing": 0.0,
+          "variant_critical_missing": 0.0,
+          "n_critical_missing": 0.0,
+          "fuzz_ratio": 0.6206896551724138,
+          "fuzz_token_sort": 0.6436781609195402,
+          "fuzz_partial": 0.8076923076923077,
+          "len_ratio": 0.5535714285714286,
+          "tfidf_word_cosine": 0.5081572843274382,
+          "tfidf_char_cosine": 0.640349461559774
+        }
+      }
+    }
+  ],
+  "signature_pipe_cs_payload": "{\"__category\":\"PIPE\",\"material\":\"CS\"}",
+  "signature_pipe_cs": "227358EAA9F31C1B8C62BE4FEABC89FAB7328FECB57AFFD9CB23E6526E1AB2CD",
+  "artifact_classifier_params": {
+    "bootstrap": true,
+    "ccp_alpha": 0.0,
+    "class_weight": "balanced",
+    "criterion": "gini",
+    "max_depth": 18,
+    "max_features": "sqrt",
+    "max_leaf_nodes": null,
+    "max_samples": null,
+    "min_impurity_decrease": 0.0,
+    "min_samples_leaf": 1,
+    "min_samples_split": 2,
+    "min_weight_fraction_leaf": 0.0,
+    "monotonic_cst": null,
+    "n_estimators": 300,
+    "n_jobs": -1,
+    "oob_score": false,
+    "random_state": 42,
+    "verbose": 0,
+    "warm_start": false
+  },
+  "artifact_sha256": {
+    "classifier.joblib": "1c8e31069d37a5e8c0c804a7b5f5cdd1132601b8f765bd18ad275130a91db108",
+    "label_encoder.joblib": "6b513e2913152fd6b06b05fd6ec11a40d71baca03f3ec085d11087f8ae55a38e",
+    "tfidf_char.joblib": "393f95313fd08a010e9ac7aa3febcc6833915768431a69f79bcffcac70f8645e",
+    "tfidf_word.joblib": "9e4ef8a5b36faa71151a9840e86fb20b851f66b70e6ccb2a174507578388ce05"
+  }
+}

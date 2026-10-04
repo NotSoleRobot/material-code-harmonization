@@ -57,6 +57,9 @@ public class HarmonizationJob {
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
+    @Column(name = "diagnostics", columnDefinition = "TEXT")
+    private String diagnostics;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

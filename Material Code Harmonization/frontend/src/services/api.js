@@ -306,6 +306,33 @@ export const api = {
     return request(`${API_BASE}/jobs/${jobId}`);
   },
 
+  streamJobEvents(jobId, onMessage, onError) {
+    if (typeof window === "undefined" || !window.EventSource) {
+      return null;
+    }
+    const token = getAuthToken();
+    const url = `${API_BASE}/jobs/${jobId}/events${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+    const source = new EventSource(url);
+
+    source.addEventListener("job-status", (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        onMessage?.(data);
+      } catch (err) {
+        console.warn("Failed to parse SSE job status payload:", err);
+      }
+    });
+
+    source.onerror = (err) => {
+      source.close();
+      onError?.(err);
+    };
+
+    return () => {
+      source.close();
+    };
+  },
+
   // --- Material comparison and harmonization ---
   async compareMaterials(materialA, materialB) {
     return request(`${API_BASE}/harmonization/compare`, {

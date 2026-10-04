@@ -1,10 +1,17 @@
 package com.sih.materialmaster.controller;
 
 import com.sih.materialmaster.entity.HarmonizationJob;
+import com.sih.materialmaster.security.UserPrincipal;
 import com.sih.materialmaster.service.HarmonizationJobService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/jobs")
@@ -19,22 +26,24 @@ public class JobController {
     @GetMapping("/{id}")
     @Transactional(readOnly = true)
     public ResponseEntity<?> getJobStatus(@PathVariable Long id,
-            @org.springframework.security.core.annotation.AuthenticationPrincipal com.sih.materialmaster.security.UserPrincipal user) {
+            @AuthenticationPrincipal UserPrincipal user) {
         HarmonizationJob job = jobService.getJob(id);
-        if ("OPERATOR".equals(user.getRole()) && (job.getCpse() == null || !java.util.Objects.equals(user.getCpseId(), job.getCpse().getCpseId()))) {
-            throw new org.springframework.security.access.AccessDeniedException("Job belongs to another CPSE");
+        if ("OPERATOR".equals(user.getRole()) && (job.getCpse() == null || !Objects.equals(user.getCpseId(), job.getCpse().getCpseId()))) {
+            throw new AccessDeniedException("Job belongs to another CPSE");
         }
-        java.util.Map<String,Object> response = new java.util.LinkedHashMap<>();
-        response.put("jobId", job.getJobId());
-        response.put("status", job.getStatus());
-        response.put("totalItems", job.getTotalItems());
-        response.put("processedItems", job.getProcessedItems());
-        response.put("importedItems", job.getImportedItems());
-        response.put("skippedItems", job.getSkippedItems());
-        response.put("autoHarmonized", job.getAutoHarmonized());
-        response.put("pendingReview", job.getPendingReview());
-        response.put("distinctMaterials", job.getDistinctMaterials());
-        response.put("errorMessage", job.getErrorMessage());
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(jobService.toJobStatusMap(job));
+    }
+
+    @GetMapping(value = "/{id}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<SseEmitter> streamJobEvents(@PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal user) {
+        HarmonizationJob job = jobService.getJob(id);
+        if ("OPERATOR".equals(user.getRole()) && (job.getCpse() == null || !Objects.equals(user.getCpseId(), job.getCpse().getCpseId()))) {
+            throw new AccessDeniedException("Job belongs to another CPSE");
+        }
+        return ResponseEntity.ok()
+                .header("X-Accel-Buffering", "no")
+                .header("Cache-Control", "no-cache, no-transform")
+                .body(jobService.subscribe(id));
     }
 }
