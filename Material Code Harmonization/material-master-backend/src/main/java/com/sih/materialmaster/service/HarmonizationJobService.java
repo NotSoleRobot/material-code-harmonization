@@ -120,7 +120,7 @@ public class HarmonizationJobService {
                         int remaining = 100 - collectedDiagnostics.size();
                         collectedDiagnostics.addAll(result.diagnostics().subList(0, Math.min(remaining, result.diagnostics().size())));
                     }
-                    dispatchHarmonization(result.materialIds(), autoHarmonize, harmonizationTasks);
+                    dispatchHarmonization(jobId, expectedTotal, result.materialIds(), autoHarmonize, harmonizationTasks);
                     updateIngestionProgress(jobId, "PROCESSING_INGESTION", expectedTotal, total, imported, skipped);
                     batch.clear();
                 }
@@ -133,7 +133,7 @@ public class HarmonizationJobService {
                     int remaining = 100 - collectedDiagnostics.size();
                     collectedDiagnostics.addAll(result.diagnostics().subList(0, Math.min(remaining, result.diagnostics().size())));
                 }
-                dispatchHarmonization(result.materialIds(), autoHarmonize, harmonizationTasks);
+                dispatchHarmonization(jobId, expectedTotal, result.materialIds(), autoHarmonize, harmonizationTasks);
             }
             updateIngestionProgress(jobId, autoHarmonize ? "HARMONIZING" : "COMPLETED",
                     expectedTotal, total, imported, skipped);
@@ -159,13 +159,25 @@ public class HarmonizationJobService {
         }
     }
 
-    private void dispatchHarmonization(List<Long> materialIds, boolean autoHarmonize,
+    private void dispatchHarmonization(Long jobId, int expectedTotal, List<Long> materialIds, boolean autoHarmonize,
                                        List<CompletableFuture<BatchStats>> tasks) {
         if (!autoHarmonize) return;
         for (int start = 0; start < materialIds.size(); start += HARMONIZATION_BATCH_SIZE) {
             List<Long> ids = List.copyOf(materialIds.subList(
                     start, Math.min(start + HARMONIZATION_BATCH_SIZE, materialIds.size())));
-            tasks.add(CompletableFuture.supplyAsync(() -> harmonizeBatch(ids), harmonizationExecutor));
+            tasks.add(CompletableFuture.supplyAsync(() -> {
+                BatchStats stats = harmonizeBatch(ids);
+                jobRepository.findById(jobId).ifPresent(job -> {
+                    int prevProcessed = job.getProcessedItems() != null ? job.getProcessedItems() : 0;
+                    job.setProcessedItems(Math.min(expectedTotal, prevProcessed + ids.size()));
+                    if (job.getAutoHarmonized() != null) job.setAutoHarmonized(job.getAutoHarmonized() + stats.auto());
+                    if (job.getPendingReview() != null) job.setPendingReview(job.getPendingReview() + stats.review());
+                    if (job.getDistinctMaterials() != null) job.setDistinctMaterials(job.getDistinctMaterials() + stats.distinct());
+                    HarmonizationJob saved = jobRepository.save(job);
+                    notifyEmitters(saved);
+                });
+                return stats;
+            }, harmonizationExecutor));
         }
     }
 

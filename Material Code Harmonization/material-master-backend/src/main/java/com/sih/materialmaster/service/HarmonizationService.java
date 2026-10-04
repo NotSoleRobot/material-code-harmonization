@@ -145,7 +145,11 @@ public class HarmonizationService {
                     }
                 }
             } catch (Exception e) {
-                throw new IllegalStateException("Attribute extraction failed for material " + materialId, e);
+                log.warn("Attribute extraction client failed for material {}; using heuristic fallback: {}", materialId, e.getMessage());
+                targetAttrs = extractHeuristicAttributes(target.getDescription(), target.getSpecification());
+                target.setExtractedAttributes(new HashMap<>(targetAttrs));
+                target.setAttributesExtractedAt(LocalDateTime.now());
+                materialRepository.save(target);
             }
         }
 

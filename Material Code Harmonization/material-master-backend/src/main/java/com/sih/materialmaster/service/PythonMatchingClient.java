@@ -39,10 +39,10 @@ public class PythonMatchingClient implements MatchingClient {
     public PythonMatchingClient(
             @Value("${matching.service.url:http://localhost:5000}") String baseUrl,
             @Value("${matching.service.token:}") String serviceToken,
-            @Value("${matching.service.connect-timeout-ms:5000}") int connectTimeout,
-            @Value("${matching.service.read-timeout-ms:60000}") int readTimeout,
-            @Value("${matching.service.max-attempts:3}") int maxAttempts,
-            @Value("${matching.service.retry-delay-ms:1500}") long retryDelayMs) {
+            @Value("${matching.service.connect-timeout-ms:2000}") int connectTimeout,
+            @Value("${matching.service.read-timeout-ms:5000}") int readTimeout,
+            @Value("${matching.service.max-attempts:1}") int maxAttempts,
+            @Value("${matching.service.retry-delay-ms:500}") long retryDelayMs) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.maxAttempts = Math.max(1, maxAttempts);
         this.retryDelayMs = Math.max(0, retryDelayMs);
