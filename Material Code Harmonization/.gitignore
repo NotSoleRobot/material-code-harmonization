@@ -31,3 +31,19 @@ material-master-backend/src/main/resources/schema.sql
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Archives and scratch docs
+*.zip
+*.7z
+*.docx
+*.pptx
+*.pdf
+docs/PPT_CONTEXT.md
+docs/FOUND_ISSUES.md
+docs/presentation_*.json
+docs/*Chart*.png
+CODEX_HANDOFF_PROMPT.md
+DEMO_WALKTHROUGH.md
+implementation plan/
+tmp/
+

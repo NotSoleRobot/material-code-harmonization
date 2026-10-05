@@ -37,4 +37,14 @@ Thumbs.db
 .codex-*/
 .presentation-build/
 output/
+tmp/
+*.docx
+*.pptx
+*.pdf
 Material Code Harmonization/docs/PPT_CONTEXT.md
+Material Code Harmonization/docs/FOUND_ISSUES.md
+Material Code Harmonization/docs/presentation_*.json
+Material Code Harmonization/docs/*Chart*.png
+CODEX_HANDOFF_PROMPT.md
+DEMO_WALKTHROUGH.md
+

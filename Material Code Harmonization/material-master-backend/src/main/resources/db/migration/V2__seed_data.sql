@@ -57,7 +57,7 @@ VALUES
     ('Dr. Rajesh Sharma (Senior Catalog Approver)', 'senior.reviewer@numm.gov.in', crypt('reviewer123', gen_salt('bf', 12)), 'SENIOR_REVIEWER', NULL, true),
     ('Dr. S. Ananth (Mechanical Review Specialist)', 'lead.reviewer@numm.gov.in', crypt('reviewer123', gen_salt('bf', 12)), 'REVIEWER', NULL, true),
     ('Priya Nambiar (Electrical & Systems Reviewer)', 'reviewer.electrical@numm.gov.in', crypt('reviewer123', gen_salt('bf', 12)), 'REVIEWER', NULL, true),
-    ('Pavan K (CPSE Operator - ONGC)', 'operator@ongc.co.in', crypt('operator123', gen_salt('bf', 12)), 'OPERATOR', (SELECT cpse_id FROM cpse WHERE name = 'ONGC'), true),
+    ('Ramesh Nair (CPSE Operator - ONGC)', 'operator@ongc.co.in', crypt('operator123', gen_salt('bf', 12)), 'OPERATOR', (SELECT cpse_id FROM cpse WHERE name = 'ONGC'), true),
     ('Sunita Verma (CPSE Operator - IOCL)', 'operator@iocl.in', crypt('operator123', gen_salt('bf', 12)), 'OPERATOR', (SELECT cpse_id FROM cpse WHERE name = 'IOCL'), true),
     ('Amit Patel (CPSE Operator - GAIL)', 'operator@gail.co.in', crypt('operator123', gen_salt('bf', 12)), 'OPERATOR', (SELECT cpse_id FROM cpse WHERE name = 'GAIL'), true),
     ('Rajesh Kumar (CPSE Operator - BHEL)', 'operator@bhel.in', crypt('operator123', gen_salt('bf', 12)), 'OPERATOR', (SELECT cpse_id FROM cpse WHERE name = 'BHEL'), true),
