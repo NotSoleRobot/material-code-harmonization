@@ -211,7 +211,7 @@ export function CatalogView() {
             <Table caption="Canonical material master">
               <thead>
                 <tr>
-                  <th scope="col" style={{ width: "22%" }}>Catalog Reference</th>
+                  <th scope="col" style={{ width: "22%" }}>National Material Code</th>
                   <th scope="col" style={{ width: "38%" }}>Standardized Description</th>
                   <th scope="col" style={{ width: "15%" }}>Commodity Class</th>
                   <th scope="col" style={{ width: "8%" }}>UOM</th>
@@ -271,7 +271,7 @@ export function CatalogView() {
                   <th scope="col">CPSE</th>
                   <th scope="col">Plant Material Code</th>
                   <th scope="col">Raw Material Description</th>
-                  <th scope="col">Catalog Reference</th>
+                  <th scope="col">National Material Code</th>
                   <th scope="col">Standardized Specification</th>
                   <th scope="col">Mapping Status</th>
                 </tr>

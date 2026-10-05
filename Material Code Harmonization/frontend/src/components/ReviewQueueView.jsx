@@ -284,7 +284,7 @@ export function ReviewQueueView() {
         <Table caption="Mappings awaiting governance review">
           <thead><tr>
             <th scope="col">Mapping</th><th scope="col">Submitting CPSE</th>
-            <th scope="col">Plant material</th><th scope="col">Proposed canonical record</th>
+            <th scope="col">Plant material</th><th scope="col">Proposed national record</th>
             <th scope="col">Match basis</th><th scope="col">Confidence</th>
             <th scope="col">SLA</th><th scope="col" className="text-right">Action</th>
           </tr></thead>
@@ -294,7 +294,15 @@ export function ReviewQueueView() {
               <td className="table-code">#{mappingId}</td>
               <td><span className="badge badge-neutral">{m.cpseName}</span></td>
               <td><div className="font-medium">{m.materialDescription || m.rawDescription}</div><div className="text-xs text-muted font-mono">{m.cpseMaterialCode || "—"}</div></td>
-              <td><div>{m.standardizedDescription || m.groupCanonicalName || "Canonical master record"}</div>{m.commonMaterialCode && <CodeChip code={m.commonMaterialCode} />}</td>
+              <td>
+                <div>{m.standardizedDescription || m.groupCanonicalName || "Canonical master record"}</div>
+                {(m.commonMaterialCode || m.provisionalRef) && (
+                  <div className="mt-1">
+                    <span className="text-xs text-muted">National Material Code </span>
+                    <CodeChip code={m.commonMaterialCode || m.provisionalRef} size="sm" />
+                  </div>
+                )}
+              </td>
               <td>
                 <span className="badge badge-info">{m.routingDecision || m.matchBasis || "Not recorded"}</span>
                 {m.candidateMargin != null && <div className="text-xs text-muted mt-1">Margin {(Number(m.candidateMargin) * 100).toFixed(1)}%</div>}

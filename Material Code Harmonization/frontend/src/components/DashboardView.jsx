@@ -159,8 +159,8 @@ export function DashboardView() {
           </div>
           <div className="kpi-content">
             <span className="kpi-label">{t("dashboard.totalGroups")}</span>
-            <span className="kpi-value">{stats?.totalGroups?.toLocaleString() ?? 0}</span>
-            <span className="kpi-sub text-success">Active Harmonized Records</span>
+            <span className="kpi-value">{stats?.totalUniqueGroups?.toLocaleString() ?? 0}</span>
+            <span className="kpi-sub text-success">National material codes created</span>
           </div>
         </div>
 

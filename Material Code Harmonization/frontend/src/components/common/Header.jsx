@@ -54,7 +54,6 @@ export function Header({ onMenuToggle }) {
               <UserIcon size={14} aria-hidden="true" />
             </div>
             <div className="user-details">
-              <span className="user-name">{user.name}</span>
               <span className={`badge ${getRoleBadgeClass(user.role)} user-role-badge`}>
                 {t(`roles.${user.role}`, user.role)}
               </span>

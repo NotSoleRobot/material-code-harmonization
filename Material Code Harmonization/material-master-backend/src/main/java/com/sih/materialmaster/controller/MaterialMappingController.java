@@ -224,7 +224,7 @@ public class MaterialMappingController {
         return new AuditTrailDto(
                 a.getAuditId(),
                 a.getUser() != null ? a.getUser().getUserId() : null,
-                a.getUser() != null ? a.getUser().getName() : "System Automation",
+                a.getUser() != null ? roleLabel(a.getUser().getRole()) : "System Automation",
                 a.getAction(),
                 a.getEntityType(),
                 a.getEntityId(),
@@ -289,7 +289,7 @@ public class MaterialMappingController {
         }
 
         if (mapping.getReviewedBy() != null) {
-            resp.setReviewedByName(mapping.getReviewedBy().getName());
+            resp.setReviewedByName(roleLabel(mapping.getReviewedBy().getRole()));
             resp.setReviewedByUserId(mapping.getReviewedBy().getUserId());
         }
         resp.setSupersedesMappingId(mapping.getSupersedesMapping() != null ? mapping.getSupersedesMapping().getMappingId() : null);
@@ -299,5 +299,15 @@ public class MaterialMappingController {
         resp.setCreatedAt(mapping.getCreatedAt());
 
         return resp;
+    }
+
+    private String roleLabel(String role) {
+        if (role == null) return "System User";
+        return switch (role.toUpperCase()) {
+            case "ADMIN" -> "Central Administrator";
+            case "SENIOR_REVIEWER" -> "Senior Reviewer";
+            case "OPERATOR" -> "CPSE Operator";
+            default -> "System User";
+        };
     }
 }

@@ -73,6 +73,7 @@ public class HostedAccountInitializer implements ApplicationRunner {
         }
         admin.setPasswordHash(passwordEncoder.encode(
                 demoAccountsEnabled ? demoAdminPassword : adminPassword));
+        admin.setName("Central Administrator");
         admin.setActive(true);
         userRepository.save(admin);
 
@@ -90,6 +91,8 @@ public class HostedAccountInitializer implements ApplicationRunner {
             for (String email : SEEDED_NON_ADMIN_EMAILS) {
                 userRepository.findByEmail(email).ifPresent(user -> {
                     user.setActive(true);
+                    user.setName("OPERATOR".equalsIgnoreCase(user.getRole())
+                            ? "CPSE Operator" : "Senior Reviewer");
                     if (demoAccountsEnabled) {
                         String password = "OPERATOR".equalsIgnoreCase(user.getRole())
                                 ? demoOperatorPassword : demoReviewerPassword;

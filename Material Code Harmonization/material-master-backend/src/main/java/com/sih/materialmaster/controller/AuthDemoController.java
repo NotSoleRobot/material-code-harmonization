@@ -49,7 +49,11 @@ public class AuthDemoController {
 
     private Map<String, Object> toDemoAccount(User user) {
         Map<String, Object> account = new LinkedHashMap<>();
-        account.put("label", user.getName());
+        account.put("label", switch (user.getRole()) {
+            case "OPERATOR" -> "CPSE Operator";
+            case "SENIOR_REVIEWER" -> "Senior Reviewer";
+            default -> "Central Administrator";
+        });
         account.put("email", user.getEmail());
         account.put("password", passwordFor(user.getRole()));
         account.put("role", user.getRole());

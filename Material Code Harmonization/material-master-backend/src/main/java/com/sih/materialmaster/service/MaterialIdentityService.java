@@ -29,11 +29,18 @@ public class MaterialIdentityService {
     @Transactional
     public long allocateReferenceSerial(MaterialCategory category) {
         String commodity = commodityCode(category);
+        Long categoryId = category != null ? category.getCategoryId() : null;
         Object result = entityManager.createNativeQuery(
-                        "INSERT INTO material_code_serial (commodity_code, next_serial) VALUES (:commodity, 2) " +
-                        "ON CONFLICT (commodity_code) DO UPDATE SET next_serial = material_code_serial.next_serial + 1 " +
+                        "INSERT INTO material_code_serial (commodity_code, next_serial) " +
+                        "VALUES (:commodity, (SELECT COALESCE(MAX(code_serial), 0) + 2 FROM material_group " +
+                        "WHERE (:categoryId IS NULL AND category_id IS NULL) OR category_id = :categoryId)) " +
+                        "ON CONFLICT (commodity_code) DO UPDATE SET next_serial = " +
+                        "GREATEST(material_code_serial.next_serial, " +
+                        "(SELECT COALESCE(MAX(code_serial), 0) + 1 FROM material_group " +
+                        "WHERE (:categoryId IS NULL AND category_id IS NULL) OR category_id = :categoryId)) + 1 " +
                         "RETURNING next_serial - 1")
                 .setParameter("commodity", commodity)
+                .setParameter("categoryId", categoryId)
                 .getSingleResult();
         if (result instanceof Number number) return number.longValue();
         throw new IllegalStateException("Unable to allocate catalog reference for commodity " + commodity);

@@ -412,7 +412,7 @@ public class HarmonizationJobService {
             job.setDistinctMaterials(autoHarmonize ? stats.distinct() : queuedForHarmonization);
             job.setStatus(stats.failures() == 0 ? "COMPLETED" : "FAILED");
             if (stats.failures() > 0) {
-                job.setErrorMessage(stats.failures() + " material(s) failed. First failure: " + stats.firstFailure());
+                job.setErrorMessage(stats.failures() + " material(s) could not be harmonized. " + safeFailureMessage(stats.firstFailure()));
             }
             if (diagnostics != null && !diagnostics.isEmpty()) {
                 try {
@@ -430,7 +430,7 @@ public class HarmonizationJobService {
     private void failJob(Long jobId, String message) {
         jobRepository.findById(jobId).ifPresent(job -> {
             job.setStatus("FAILED");
-            job.setErrorMessage(message == null ? "Background ingestion failed" : message);
+            job.setErrorMessage(safeFailureMessage(message));
             job.setCompletedAt(LocalDateTime.now());
             HarmonizationJob saved = jobRepository.save(job);
             notifyEmitters(saved);
@@ -489,7 +489,7 @@ public class HarmonizationJobService {
                         log.warn("Harmonization failed for item {}: {}", matId, ex.getMessage());
                         failures++;
                         if (firstFailure == null) {
-                            firstFailure = "Material " + matId + ": " + ex.getMessage();
+                            firstFailure = "Material " + matId + ": " + safeFailureMessage(ex.getMessage());
                         }
                     }
 
@@ -515,7 +515,7 @@ public class HarmonizationJobService {
                 job.setDistinctMaterials(distinct);
                 job.setStatus(failures == 0 ? "COMPLETED" : "FAILED");
                 if (failures > 0) {
-                    job.setErrorMessage(failures + " material(s) failed. First failure: " + firstFailure);
+                    job.setErrorMessage(failures + " material(s) could not be harmonized. " + safeFailureMessage(firstFailure));
                 }
                 job.setCompletedAt(LocalDateTime.now());
                 HarmonizationJob saved = jobRepository.save(job);
@@ -526,12 +526,27 @@ public class HarmonizationJobService {
             HarmonizationJob job = jobRepository.findById(jobId).orElse(null);
             if (job != null) {
                 job.setStatus("FAILED");
-                job.setErrorMessage(e.getMessage());
+                job.setErrorMessage(safeFailureMessage(e.getMessage()));
                 job.setCompletedAt(LocalDateTime.now());
                 HarmonizationJob saved = jobRepository.save(job);
                 notifyEmitters(saved);
             }
         }
+    }
+
+    private String safeFailureMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return "The background harmonization job failed. Please retry the batch.";
+        }
+        String lower = message.toLowerCase(Locale.ROOT);
+        if (lower.contains("uq_group_category_code_serial") || lower.contains("duplicate key")) {
+            return "A catalog-code allocation conflict was detected. Retry the batch; completed records remain unchanged.";
+        }
+        if (lower.contains("could not execute statement") || lower.contains("sql [") || lower.contains("constraint [")) {
+            return "The database could not save one of the harmonized records. Retry the batch or inspect the server log.";
+        }
+        String compact = message.replaceAll("[\\r\\n\\t]+", " ").replaceAll("\\s{2,}", " ").trim();
+        return compact.length() > 240 ? compact.substring(0, 237) + "..." : compact;
     }
 
     public SseEmitter subscribe(Long jobId) {

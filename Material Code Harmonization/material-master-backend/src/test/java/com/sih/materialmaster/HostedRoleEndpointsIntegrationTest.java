@@ -163,7 +163,7 @@ class HostedRoleEndpointsIntegrationTest {
 
         mvc.perform(get("/api/mappings/audit").header("Authorization", bearer(seniorToken)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].username", hasItem("System Administrator")))
+                .andExpect(jsonPath("$[*].username", hasItem("Central Administrator")))
                 .andExpect(jsonPath("$[*].rowHash", hasItem("A".repeat(64))));
     }
 
