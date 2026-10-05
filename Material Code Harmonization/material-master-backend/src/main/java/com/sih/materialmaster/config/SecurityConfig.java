@@ -80,27 +80,20 @@ public class SecurityConfig {
                         // 4. Admin management
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/demo/**").hasRole("ADMIN")
-                        // 5. Procurement assumptions
-                        .requestMatchers(HttpMethod.PUT, "/api/analytics/assumptions/**").hasRole("ADMIN")
-                        // 6. Analytics and KPIs
-                        .requestMatchers(HttpMethod.GET, "/api/analytics/**", "/api/dashboard/**").hasAnyRole("REVIEWER", "SENIOR_REVIEWER", "ADMIN")
+                        // 5. Analytics and KPIs
+                        .requestMatchers(HttpMethod.GET, "/api/dashboard/**").hasAnyRole("SENIOR_REVIEWER", "ADMIN")
                         // 7. Audit queries
-                        .requestMatchers(HttpMethod.GET, "/api/mappings/audit/**", "/api/mappings/audit").hasAnyRole("REVIEWER", "SENIOR_REVIEWER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/mappings/audit/**", "/api/mappings/audit").hasAnyRole("SENIOR_REVIEWER", "ADMIN")
                         // 8. Supersede mapping decisions
-                        .requestMatchers(HttpMethod.POST, "/api/mappings/*/supersede").hasAnyRole("REVIEWER", "SENIOR_REVIEWER", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/mappings/*/approve-and-publish").hasAnyRole("REVIEWER", "SENIOR_REVIEWER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/mappings/*/supersede").hasAnyRole("SENIOR_REVIEWER", "ADMIN")
                         // 9. Bulk approve high-confidence mappings
-                        .requestMatchers(HttpMethod.POST, "/api/mappings/bulk-approve").hasAnyRole("REVIEWER", "SENIOR_REVIEWER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/mappings/bulk-approve").hasAnyRole("SENIOR_REVIEWER", "ADMIN")
                         // 10. Individual mapping review decisions
-                        .requestMatchers(HttpMethod.POST, "/api/mappings/*/approve", "/api/mappings/*/reject", "/api/mappings/*/edit").hasAnyRole("REVIEWER", "SENIOR_REVIEWER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/mappings/*/approve", "/api/mappings/*/reject", "/api/mappings/*/edit").hasAnyRole("SENIOR_REVIEWER", "ADMIN")
                         // 11. Read mappings
-                        .requestMatchers(HttpMethod.GET, "/api/mappings/**").hasAnyRole("REVIEWER", "SENIOR_REVIEWER", "ADMIN")
-                        // 12. Publishable groups queue
-                        .requestMatchers(HttpMethod.GET, "/api/groups/publishable").hasAnyRole("REVIEWER", "SENIOR_REVIEWER", "ADMIN")
-                        // 13. Mint official National Code
-                        .requestMatchers(HttpMethod.POST, "/api/groups/*/mint").hasAnyRole("REVIEWER", "SENIOR_REVIEWER", "ADMIN")
-                        // 14. National Code lookup & validation (all authenticated users)
-                        .requestMatchers(HttpMethod.GET, "/api/codes/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/mappings/**").hasAnyRole("SENIOR_REVIEWER", "ADMIN")
+                        // 12. Harmonized catalog lookup (all authenticated users)
+                        .requestMatchers(HttpMethod.GET, "/api/catalog/**").authenticated()
                         // 15. Pairwise ML Sandbox comparison (all authenticated users)
                         .requestMatchers(HttpMethod.POST, "/api/harmonization/compare").authenticated()
                         // 16. Batch harmonization trigger (Admin only)
@@ -110,9 +103,9 @@ public class SecurityConfig {
                         // 18. Material ingest and job tracking
                         .requestMatchers("/api/materials/**", "/api/jobs/**").hasAnyRole("OPERATOR", "ADMIN")
                         // 19. Export catalog
-                        .requestMatchers(HttpMethod.GET, "/api/export/catalog").hasAnyRole("REVIEWER", "SENIOR_REVIEWER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/export/catalog").hasAnyRole("SENIOR_REVIEWER", "ADMIN")
                         // 20. Other exports
-                        .requestMatchers(HttpMethod.GET, "/api/export/**").hasAnyRole("OPERATOR", "REVIEWER", "SENIOR_REVIEWER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/export/**").hasAnyRole("OPERATOR", "SENIOR_REVIEWER", "ADMIN")
                         // 21. Deny all other requests
                         .anyRequest().denyAll()
                 )

@@ -19,8 +19,6 @@ public class HostedAccountInitializer implements ApplicationRunner {
 
     private static final List<String> SEEDED_NON_ADMIN_EMAILS = List.of(
             "senior.reviewer@numm.gov.in",
-            "reviewer.mech@numm.gov.in",
-            "reviewer.elec@numm.gov.in",
             "operator@ongc.co.in",
             "operator@iocl.in",
             "operator@gail.co.in",
@@ -88,7 +86,7 @@ public class HostedAccountInitializer implements ApplicationRunner {
         } else {
             // The role accounts are part of the seeded operational workflow.
             // Re-enable accounts that an earlier hosted deployment disabled so
-            // Operator, Reviewer and Senior Reviewer access recovers on restart.
+            // Operator and Senior Reviewer access recovers on restart.
             for (String email : SEEDED_NON_ADMIN_EMAILS) {
                 userRepository.findByEmail(email).ifPresent(user -> {
                     user.setActive(true);

@@ -28,18 +28,15 @@ class SecurityMatrixTest {
     @RestController
     public static class MatrixProbeController {
         @RequestMapping({"/api/auth/login", "/error", "/actuator/health", "/api/auth/demo-accounts",
-                "/api/auth/me", "/api/auth/logout", "/api/admin/users", "/api/analytics/stats",
+                "/api/auth/me", "/api/auth/logout", "/api/admin/users",
                 "/api/dashboard/stats", "/api/mappings/audit/verify", "/api/mappings/1/supersede",
                 "/api/mappings/bulk-approve", "/api/mappings/1/approve", "/api/mappings/1/reject",
-                "/api/mappings/1/edit", "/api/mappings/1", "/api/groups/publishable",
-                "/api/groups/1/mint", "/api/codes/NUMM-40-14-07-000001-X",
+                "/api/mappings/1/edit", "/api/mappings/1", "/api/catalog/CAT-401407-000001",
                 "/api/harmonization/compare", "/api/harmonization/harmonize-all",
                 "/api/harmonization/1", "/api/materials/1", "/api/jobs/1",
                 "/api/export/catalog", "/api/export/cross-reference", "/api/not-declared"})
         public ResponseEntity<Void> ok() { return ResponseEntity.ok().build(); }
 
-        @PutMapping("/api/analytics/assumptions/1")
-        public ResponseEntity<Void> assumption() { return ResponseEntity.ok().build(); }
     }
 
     @Test void row01_publicEndpointsArePermitted() throws Exception {
@@ -58,20 +55,14 @@ class SecurityMatrixTest {
     @Test @WithMockUser(roles="ADMIN") void row04_adminAreaIsAdminOnly() throws Exception {
         mvc.perform(get("/api/admin/users")).andExpect(status().isOk());
     }
-    @Test @WithMockUser(roles="REVIEWER") void row04_adminAreaRejectsReviewer() throws Exception {
+    @Test @WithMockUser(roles="OPERATOR") void row04_adminAreaRejectsOperator() throws Exception {
         mvc.perform(get("/api/admin/users")).andExpect(status().isForbidden());
-    }
-    @Test @WithMockUser(roles="ADMIN") void row05_assumptionsPutIsAdminOnly() throws Exception {
-        mvc.perform(put("/api/analytics/assumptions/1")).andExpect(status().isOk());
-    }
-    @Test @WithMockUser(roles="SENIOR_REVIEWER") void row05_assumptionsPutRejectsSenior() throws Exception {
-        mvc.perform(put("/api/analytics/assumptions/1")).andExpect(status().isForbidden());
     }
     @Test @WithMockUser(roles="SENIOR_REVIEWER") void row06_analyticsReadAllowsSenior() throws Exception {
         mvc.perform(get("/api/dashboard/stats")).andExpect(status().isOk());
     }
     @Test @WithMockUser(roles="OPERATOR") void row06_analyticsReadRejectsOperator() throws Exception {
-        mvc.perform(get("/api/analytics/stats")).andExpect(status().isForbidden());
+        mvc.perform(get("/api/dashboard/stats")).andExpect(status().isForbidden());
     }
     @Test @WithMockUser(roles="ADMIN") void row07_auditReadAllowsAdmin() throws Exception {
         mvc.perform(get("/api/mappings/audit/verify")).andExpect(status().isOk());
@@ -82,16 +73,16 @@ class SecurityMatrixTest {
     @Test @WithMockUser(roles="SENIOR_REVIEWER") void row08_supersedeAllowsSenior() throws Exception {
         mvc.perform(post("/api/mappings/1/supersede")).andExpect(status().isOk());
     }
-    @Test @WithMockUser(roles="REVIEWER") void row08_supersedeAllowsReviewer() throws Exception {
-        mvc.perform(post("/api/mappings/1/supersede")).andExpect(status().isOk());
+    @Test @WithMockUser(roles="OPERATOR") void row09_bulkApproveRejectsOperator() throws Exception {
+        mvc.perform(post("/api/mappings/bulk-approve")).andExpect(status().isForbidden());
     }
-    @Test @WithMockUser(roles="REVIEWER") void row09_bulkApproveAllowsReviewer() throws Exception {
+    @Test @WithMockUser(roles="SENIOR_REVIEWER") void row09_bulkApproveAllowsSenior() throws Exception {
         mvc.perform(post("/api/mappings/bulk-approve")).andExpect(status().isOk());
     }
     @Test @WithMockUser(roles="ADMIN") void row09_bulkApproveAllowsAdmin() throws Exception {
         mvc.perform(post("/api/mappings/bulk-approve")).andExpect(status().isOk());
     }
-    @Test @WithMockUser(roles="REVIEWER") void row10_mappingDecisionAllowsReviewer() throws Exception {
+    @Test @WithMockUser(roles="SENIOR_REVIEWER") void row10_mappingDecisionAllowsSenior() throws Exception {
         mvc.perform(post("/api/mappings/1/approve")).andExpect(status().isOk());
     }
     @Test @WithMockUser(roles="ADMIN") void row10_mappingDecisionAllowsAdmin() throws Exception {
@@ -103,26 +94,11 @@ class SecurityMatrixTest {
     @Test @WithMockUser(roles="OPERATOR") void row11_mappingReadRejectsOperator() throws Exception {
         mvc.perform(get("/api/mappings/1")).andExpect(status().isForbidden());
     }
-    @Test @WithMockUser(roles="SENIOR_REVIEWER") void row12_publishableAllowsSenior() throws Exception {
-        mvc.perform(get("/api/groups/publishable")).andExpect(status().isOk());
+    @Test @WithMockUser(roles="OPERATOR") void row14_catalogReadAllowsAuthenticated() throws Exception {
+        mvc.perform(get("/api/catalog/CAT-401407-000001")).andExpect(status().isOk());
     }
-    @Test @WithMockUser(roles="REVIEWER") void row12_publishableAllowsReviewer() throws Exception {
-        mvc.perform(get("/api/groups/publishable")).andExpect(status().isOk());
-    }
-    @Test @WithMockUser(roles="ADMIN") void row13_mintAllowsAdmin() throws Exception {
-        mvc.perform(post("/api/groups/1/mint")).andExpect(status().isOk());
-    }
-    @Test @WithMockUser(roles="REVIEWER") void row13_mintAllowsReviewer() throws Exception {
-        mvc.perform(post("/api/groups/1/mint")).andExpect(status().isOk());
-    }
-    @Test @WithMockUser(roles="SENIOR_REVIEWER") void row13_mintAllowsSenior() throws Exception {
-        mvc.perform(post("/api/groups/1/mint")).andExpect(status().isOk());
-    }
-    @Test @WithMockUser(roles="OPERATOR") void row14_codesReadAllowsAuthenticated() throws Exception {
-        mvc.perform(get("/api/codes/NUMM-40-14-07-000001-X")).andExpect(status().isOk());
-    }
-    @Test void row14_codesReadRejectsAnonymous() throws Exception {
-        mvc.perform(get("/api/codes/NUMM-40-14-07-000001-X")).andExpect(status().isUnauthorized());
+    @Test void row14_catalogReadRejectsAnonymous() throws Exception {
+        mvc.perform(get("/api/catalog/CAT-401407-000001")).andExpect(status().isUnauthorized());
     }
     @Test @WithMockUser(roles="OPERATOR") void row15_compareAllowsEveryRole() throws Exception {
         mvc.perform(post("/api/harmonization/compare")).andExpect(status().isOk());
@@ -139,27 +115,24 @@ class SecurityMatrixTest {
     @Test @WithMockUser(roles="OPERATOR") void row17_singleHarmonizeAllowsOperator() throws Exception {
         mvc.perform(post("/api/harmonization/1")).andExpect(status().isOk());
     }
-    @Test @WithMockUser(roles="REVIEWER") void row17_singleHarmonizeRejectsReviewer() throws Exception {
+    @Test @WithMockUser(roles="SENIOR_REVIEWER") void row17_singleHarmonizeRejectsSenior() throws Exception {
         mvc.perform(post("/api/harmonization/1")).andExpect(status().isForbidden());
     }
     @Test @WithMockUser(roles="OPERATOR") void row18_materialsAndJobsAllowOperator() throws Exception {
         mvc.perform(get("/api/materials/1")).andExpect(status().isOk());
         mvc.perform(get("/api/jobs/1")).andExpect(status().isOk());
     }
-    @Test @WithMockUser(roles="REVIEWER") void row18_materialsAndJobsRejectReviewer() throws Exception {
+    @Test @WithMockUser(roles="SENIOR_REVIEWER") void row18_materialsAndJobsRejectSenior() throws Exception {
         mvc.perform(get("/api/materials/1")).andExpect(status().isForbidden());
         mvc.perform(get("/api/jobs/1")).andExpect(status().isForbidden());
     }
     @Test @WithMockUser(roles="SENIOR_REVIEWER") void row19_catalogExportAllowsSenior() throws Exception {
         mvc.perform(get("/api/export/catalog")).andExpect(status().isOk());
     }
-    @Test @WithMockUser(roles="REVIEWER") void row19_catalogExportAllowsReviewer() throws Exception {
-        mvc.perform(get("/api/export/catalog")).andExpect(status().isOk());
-    }
     @Test @WithMockUser(roles="OPERATOR") void row20_otherExportsAllowOperator() throws Exception {
         mvc.perform(get("/api/export/cross-reference")).andExpect(status().isOk());
     }
-    @Test @WithMockUser(roles="REVIEWER") void row20_otherExportsAllowReviewer() throws Exception {
+    @Test @WithMockUser(roles="SENIOR_REVIEWER") void row20_otherExportsAllowSenior() throws Exception {
         mvc.perform(get("/api/export/cross-reference")).andExpect(status().isOk());
     }
     @Test @WithMockUser(roles="ADMIN") void row21_unlistedEndpointsAreDenied() throws Exception {

@@ -40,7 +40,6 @@ public class AuthDemoController {
                 .filter(User::getActive)
                 .filter(user -> switch (user.getRole()) {
                     case "ADMIN", "SENIOR_REVIEWER" -> true;
-                    case "REVIEWER" -> "reviewer.mech@numm.gov.in".equalsIgnoreCase(user.getEmail());
                     case "OPERATOR" -> user.getCpse() != null && "ONGC".equalsIgnoreCase(user.getCpse().getName());
                     default -> false;
                 })
@@ -57,8 +56,7 @@ public class AuthDemoController {
         account.put("org", user.getCpse() == null ? "National Committee" : user.getCpse().getName());
         account.put("blurb", switch (user.getRole()) {
             case "OPERATOR" -> "Ingests and tracks its CPSE material catalog";
-            case "REVIEWER" -> "Adjudicates assigned commodity matches";
-            case "SENIOR_REVIEWER" -> "Publishes approved groups and mints national codes";
+            case "SENIOR_REVIEWER" -> "Reviews and adjudicates suggested material matches";
             default -> "Administers users and national analytics";
         });
         return account;

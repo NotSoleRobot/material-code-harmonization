@@ -12,11 +12,10 @@ import {
   CheckCircle2,
   AlertCircle,
   Tag,
-  Scale,
+  ClipboardCheck,
 } from "lucide-react";
 import { LoadingSkeleton } from "./common/LoadingSkeleton";
 import { ErrorPanel } from "./common/ErrorPanel";
-import { CodeChip } from "./common/CodeChip";
 
 export function DashboardView() {
   const { t } = useTranslation();
@@ -32,21 +31,6 @@ export function DashboardView() {
   } = useQuery({
     queryKey: ["dashboardStats"],
     queryFn: api.getDashboardStats,
-  });
-
-  const {
-    data: rateContracts,
-    isLoading: rcLoading,
-  } = useQuery({
-    queryKey: ["rateContractCandidates"],
-    queryFn: api.getRateContractCandidates,
-  });
-
-  const {
-    data: priceVariance,
-  } = useQuery({
-    queryKey: ["priceVariance"],
-    queryFn: api.getPriceVariance,
   });
 
   const batchHarmonizeMutation = useMutation({
@@ -98,7 +82,6 @@ export function DashboardView() {
     });
     queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
     queryClient.invalidateQueries({ queryKey: ["mappings"] });
-    queryClient.invalidateQueries({ queryKey: ["rateContractCandidates"] });
     setActiveJobId(null);
   }, [jobStatus, processedItems, totalItems, errorMessage, queryClient]);
 
@@ -169,7 +152,7 @@ export function DashboardView() {
           </div>
         </div>
 
-        {/* Canonical National Codes */}
+        {/* Harmonized catalog groups */}
         <div className="kpi-card">
           <div className="kpi-icon-wrapper kpi-success">
             <Tag size={16} aria-hidden="true" />
@@ -198,54 +181,16 @@ export function DashboardView() {
           </div>
         </div>
 
-        {/* Estimated Annual Savings */}
+        {/* Pending review */}
         <div className="kpi-card">
           <div className="kpi-icon-wrapper kpi-warning">
-            <Scale size={16} aria-hidden="true" />
+            <ClipboardCheck size={16} aria-hidden="true" />
           </div>
           <div className="kpi-content">
-            <span className="kpi-label">{t("dashboard.estimatedSavings")}</span>
-            <span className="kpi-value">₹ {stats?.estimatedSavingsInrLakhs?.toLocaleString() ?? 0} L</span>
-            <span className="kpi-sub text-muted">Observed prices plus disclosed assumptions</span>
+            <span className="kpi-label">{t("dashboard.pendingReview")}</span>
+            <span className="kpi-value">{stats?.pendingReviewCount?.toLocaleString() ?? 0}</span>
+            <span className="kpi-sub text-muted">Awaiting technical decision</span>
           </div>
-        </div>
-      </div>
-
-      <div className="card mb-4" aria-label="Savings calculation breakdown">
-        <div className="card-header">
-          <div>
-            <h2 className="card-title">Procurement savings breakdown</h2>
-            <p className="card-subtitle">All figures are shown in lakhs INR and remain separate for audit review.</p>
-          </div>
-        </div>
-        <div className="table-responsive">
-          <table className="data-table">
-            <caption>Dynamic procurement savings calculation</caption>
-            <thead>
-              <tr>
-                <th scope="col">Line item</th>
-                <th scope="col">Calculation basis</th>
-                <th scope="col" className="text-right">Lakhs INR</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr title="For each active multi-enterprise group: highest recorded price minus lowest recorded price; annual volume defaults to one.">
-                <td>Direct price arbitrage</td>
-                <td>Observed inter-enterprise price spread × volume 1</td>
-                <td className="text-right font-semibold">₹ {stats?.savingsBreakdown?.directPriceArbitrageLakhs?.toLocaleString() ?? 0}</td>
-              </tr>
-              <tr title="Median recorded nominal value of redundant items multiplied by the configurable annual carrying-cost rate.">
-                <td>Inventory holding avoidance</td>
-                <td>{stats?.savingsBreakdown?.pricedDuplicateItems ?? 0} priced duplicates × median value × {stats?.savingsBreakdown?.inventoryCarryingRatePct ?? 20}%</td>
-                <td className="text-right font-semibold">₹ {stats?.savingsBreakdown?.inventoryHoldingAvoidanceLakhs?.toLocaleString() ?? 0}</td>
-              </tr>
-              <tr title="Configurable master-data cleanup and procurement-administration assumptions multiplied by confirmed duplicates eliminated.">
-                <td>Admin and data cleanup avoidance</td>
-                <td>Disclosed assumptions × confirmed duplicates eliminated</td>
-                <td className="text-right font-semibold">₹ {stats?.savingsBreakdown?.adminDataCleanupAvoidanceLakhs?.toLocaleString() ?? 0}</td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </div>
 
@@ -355,105 +300,6 @@ export function DashboardView() {
         </div>
       </div>
 
-      {/* Demand aggregation and joint GeM rate-contract candidates */}
-      <div className="card mt-4">
-        <div className="card-header">
-          <div>
-            <h2 className="card-title">{t("dashboard.rateContractsTitle")}</h2>
-            <p className="card-subtitle">{t("dashboard.rateContractsSub")}</p>
-          </div>
-        </div>
-        <div className="table-responsive">
-          <table className="data-table" aria-label="Rate Contract Candidates">
-            <caption>Multi-CPSE candidates for joint or bulk rate contracts</caption>
-            <thead>
-              <tr>
-                <th scope="col">National Material Code</th>
-                <th scope="col">Standardized Material Description</th>
-                <th scope="col">Commodity Class</th>
-                <th scope="col" className="text-center">Participating CPSEs</th>
-                <th scope="col" className="text-center">Total Plant Codes</th>
-                <th scope="col">Recommendation</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rateContracts && rateContracts.length > 0 ? (
-                rateContracts.map((rc, idx) => (
-                  <tr key={idx}>
-                    <td>
-                      <CodeChip code={rc.nationalMaterialCode} size="sm" />
-                    </td>
-                    <td className="font-medium text-primary">{rc.standardizedDescription}</td>
-                    <td>
-                      <span className="badge badge-neutral">{rc.category}</span>
-                    </td>
-                    <td className="text-center">
-                      <span className="badge badge-success font-bold">
-                        {rc.distinctCpseCount} CPSEs
-                      </span>
-                    </td>
-                    <td className="text-center font-bold">{rc.totalMemberCount}</td>
-                    <td>
-                      <span className="badge badge-accent">
-                        {rc.distinctCpseCount >= 3 ? "Joint GeM Rate Contract" : "Bulk Rate Contract"}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="text-center text-muted p-4">
-                    {rcLoading
-                      ? "Loading rate-contract candidates…"
-                      : "No multi-CPSE consolidated items identified yet. Ingest records from multiple CPSEs to trigger demand aggregation."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Price variance analysis */}
-      {priceVariance && priceVariance.length > 0 && (
-        <div className="card mt-4">
-          <div className="card-header">
-            <div>
-              <h2 className="card-title">{t("dashboard.priceVarianceTitle")}</h2>
-              <p className="card-subtitle">{t("dashboard.priceVarianceSub")}</p>
-            </div>
-          </div>
-          <div className="table-responsive">
-            <table className="data-table" aria-label="Price Variance Table">
-              <caption>Price variance across mapped CPSE material records</caption>
-              <thead>
-                <tr>
-                  <th scope="col">National Code</th>
-                  <th scope="col">Material Description</th>
-                  <th scope="col" className="text-right">Min Unit Rate</th>
-                  <th scope="col" className="text-right">Max Unit Rate</th>
-                  <th scope="col" className="text-right">Price Spread</th>
-                  <th scope="col" className="text-right">Variance %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {priceVariance.map((pv, i) => (
-                  <tr key={i}>
-                    <td>
-                      <CodeChip code={pv.nationalCode} size="sm" />
-                    </td>
-                    <td className="font-medium">{pv.description}</td>
-                    <td className="text-right text-success font-semibold">₹ {pv.minPriceInr?.toLocaleString()}</td>
-                    <td className="text-right text-danger font-semibold">₹ {pv.maxPriceInr?.toLocaleString()}</td>
-                    <td className="text-right font-bold">₹ {pv.priceSpreadInr?.toLocaleString()}</td>
-                    <td className="text-right text-warning font-bold">{pv.spreadPercentage?.toFixed(1)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

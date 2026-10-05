@@ -27,23 +27,19 @@ public interface MaterialGroupRepository extends JpaRepository<MaterialGroup, Lo
 
     long countByStatus(String status);
 
-    @Query("SELECT DISTINCT g FROM MaterialGroup g " +
-           "LEFT JOIN MaterialMapping mm ON mm.group = g " +
-           "LEFT JOIN mm.material m " +
+    @Query("SELECT g FROM MaterialGroup g " +
            "WHERE (:status IS NULL OR g.status = :status) AND " +
            "(:category IS NULL OR LOWER(g.category.name) = LOWER(:category)) AND " +
            "(:query IS NULL OR LOWER(g.commonMaterialCode) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "OR LOWER(g.standardizedDescription) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "OR LOWER(g.provisionalRef) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "OR LOWER(m.cpseMaterialCode) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "OR LOWER(m.description) LIKE LOWER(CONCAT('%', :query, '%')))")
+           "OR EXISTS (SELECT 1 FROM MaterialMapping mm JOIN mm.material m WHERE mm.group = g AND " +
+           "(LOWER(m.cpseMaterialCode) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(m.description) LIKE LOWER(CONCAT('%', :query, '%')))))")
     Page<MaterialGroup> searchGroups(@Param("query") String query, @Param("status") String status,
                                      @Param("category") String category, Pageable pageable);
 
     @Query("SELECT DISTINCT g.category.name FROM MaterialGroup g WHERE g.category IS NOT NULL ORDER BY g.category.name")
     List<String> findCatalogCategoryNames();
 
-    @Query("SELECT DISTINCT g FROM MaterialGroup g WHERE g.status = 'PROPOSED' AND EXISTS (" +
-           "SELECT 1 FROM MaterialMapping m WHERE m.group = g AND m.status = 'CONFIRMED')")
-    List<MaterialGroup> findPublishableGroups();
 }

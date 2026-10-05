@@ -15,7 +15,7 @@ import { Table } from "./common/Table";
 
 export function ReviewQueueView() {
   const navigate = useNavigate();
-  const { user, hasRole } = useAuth();
+  const { hasRole } = useAuth();
 
   // Filters
   const [activeStatus, setActiveStatus] = useState("PENDING");
@@ -117,7 +117,7 @@ export function ReviewQueueView() {
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          {hasRole(["REVIEWER", "SENIOR_REVIEWER"]) && activeStatus === "PENDING" && highTierCount > 0 && (
+          {hasRole(["SENIOR_REVIEWER", "ADMIN"]) && activeStatus === "PENDING" && highTierCount > 0 && (
             <button
               className="btn btn-primary btn-sm"
               onClick={handleBulkApprove}
@@ -290,10 +290,6 @@ export function ReviewQueueView() {
           </tr></thead>
           <tbody>{filtered.map((m) => {
             const mappingId = m.mappingId || m.id;
-            const userCpseName = typeof user?.cpse === "string" ? user.cpse : user?.cpse?.name;
-            const isOwnCpse = Boolean(userCpseName && m.cpseName
-              && userCpseName.trim().toUpperCase() === m.cpseName.trim().toUpperCase());
-            const canApprove = hasRole(["REVIEWER", "SENIOR_REVIEWER"]) && (!isOwnCpse || hasRole("SENIOR_REVIEWER"));
             return <tr key={mappingId}>
               <td className="table-code">#{mappingId}</td>
               <td><span className="badge badge-neutral">{m.cpseName}</span></td>
@@ -307,7 +303,6 @@ export function ReviewQueueView() {
               <td>{getSlaBadge(m.createdAt || m.created_at)}</td>
               <td className="text-right">
                 <button className="btn btn-outline btn-xs" onClick={() => navigate(`/review/${mappingId}`)}><Eye size={13} /> Inspect <ChevronRight size={13} /></button>
-                {activeStatus === "PENDING" && !canApprove && <div className="text-xs text-warning mt-1"><AlertTriangle size={11} /> 4-eyes restriction</div>}
               </td>
             </tr>;
           })}</tbody>

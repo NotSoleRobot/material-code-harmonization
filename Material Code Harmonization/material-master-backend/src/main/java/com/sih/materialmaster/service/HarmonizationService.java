@@ -36,7 +36,7 @@ public class HarmonizationService {
     private final MatchingPolicyRepository matchingPolicyRepository;
     private final MatchCandidateRepository matchCandidateRepository;
     private final MatchingClient matchingClient;
-    private final NationalCodeGenerator codeGenerator;
+    private final MaterialIdentityService identityService;
     private final AuditService auditService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -47,7 +47,7 @@ public class HarmonizationService {
                                 MatchingPolicyRepository matchingPolicyRepository,
                                 MatchCandidateRepository matchCandidateRepository,
                                 MatchingClient matchingClient,
-                                NationalCodeGenerator codeGenerator,
+                                MaterialIdentityService identityService,
                                 AuditService auditService) {
         this.materialRepository = materialRepository;
         this.groupRepository = groupRepository;
@@ -56,7 +56,7 @@ public class HarmonizationService {
         this.matchingPolicyRepository = matchingPolicyRepository;
         this.matchCandidateRepository = matchCandidateRepository;
         this.matchingClient = matchingClient;
-        this.codeGenerator = codeGenerator;
+        this.identityService = identityService;
         this.auditService = auditService;
     }
 
@@ -165,7 +165,7 @@ public class HarmonizationService {
                 ? schema.getIdentityCriticalAttributes() : List.of("material");
 
         // Compute Attribute Signature
-        NationalCodeGenerator.SignatureResult sigResult = codeGenerator.computeAttributeSignature(categoryName, identityKeys, targetAttrs);
+        MaterialIdentityService.SignatureResult sigResult = identityService.computeAttributeSignature(categoryName, identityKeys, targetAttrs);
 
         HarmonizationResultDto result = new HarmonizationResultDto();
         result.setMaterialId(target.getMaterialId());
@@ -425,7 +425,7 @@ public class HarmonizationService {
         return candidates;
     }
 
-    private MaterialGroup createOrFindGroupForMaterial(Material material, Map<String, Object> attrs, NationalCodeGenerator.SignatureResult sigResult) {
+    private MaterialGroup createOrFindGroupForMaterial(Material material, Map<String, Object> attrs, MaterialIdentityService.SignatureResult sigResult) {
         if (sigResult != null && sigResult.complete()) {
             Optional<MaterialGroup> existingGroup = groupRepository.findByAttributeSignature(sigResult.signature());
             if (existingGroup.isPresent()) {
@@ -448,11 +448,11 @@ public class HarmonizationService {
         newGroup.setStandardizedSpecification(material.getSpecification());
         newGroup.setStandardizedUom(material.getUnitOfMeasure() != null ? material.getUnitOfMeasure() : "NOS");
         newGroup.setCategory(material.getCategory());
-        newGroup.setStatus("PROPOSED"); // Mint canonical NUMM code only on reviewer approval (BUG-03)
+        newGroup.setStatus("PROPOSED");
 
-        long serial = codeGenerator.allocateSerial(material.getCategory());
+        long serial = identityService.allocateReferenceSerial(material.getCategory());
         newGroup.setCodeSerial(serial);
-        newGroup.setProvisionalRef(codeGenerator.generateProvisionalRef(material.getCategory(), serial));
+        newGroup.setProvisionalRef(identityService.generateCatalogReference(material.getCategory(), serial));
 
         try {
             return groupRepository.save(newGroup);

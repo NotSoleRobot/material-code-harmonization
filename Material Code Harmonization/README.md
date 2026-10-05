@@ -2,7 +2,7 @@
 
 A national material-master harmonizer for Indian CPSEs (ONGC, IOCL, GAIL, BHEL, SAIL).
 Ingests messy legacy records, proposes matches via hybrid ML, routes them through
-four-eyes governance, and mints a single authoritative national code.
+technical review, and exposes confirmed groups through a unified material catalog.
 
 ## Quick start (Docker — recommended)
 
@@ -25,7 +25,6 @@ Wait for all four containers to become healthy (~60s), then open `http://localho
 |------|-------|----------|
 | Administrator | `admin@numm.gov.in` | `admin123` |
 | Senior reviewer | `senior.reviewer@numm.gov.in` | `reviewer123` |
-| Mechanical reviewer | `reviewer.mech@numm.gov.in` | `reviewer123` |
 | ONGC operator | `operator@ongc.co.in` | `operator123` |
 
 ## Submission-day preflight
@@ -61,5 +60,5 @@ not bypass JWT authentication or substitute mock data.
 
 - [RUNBOOK.md](docs/RUNBOOK.md) — ports, profiles, env vars, how everything connects
 - [SYSTEM_STATUS_AND_ARCHITECTURE.md](docs/SYSTEM_STATUS_AND_ARCHITECTURE.md) — architecture overview
-- [DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) — five-act demo walkthrough
+- [DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) — focused demo walkthrough
 - [RENDER_DEPLOYMENT.md](docs/RENDER_DEPLOYMENT.md) — hosted Render + Supabase deployment

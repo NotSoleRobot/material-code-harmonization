@@ -27,9 +27,6 @@ class GovernanceServiceTest {
     private MaterialGroupRepository groupRepository;
 
     @Mock
-    private NationalCodeGenerator codeGenerator;
-
-    @Mock
     private AuditService auditService;
 
     @Mock
@@ -90,30 +87,23 @@ class GovernanceServiceTest {
         reviewerIocl.setUserId(2L);
         reviewerIocl.setName("Dr. S. Ananth");
         reviewerIocl.setEmail("reviewer@iocl.co.in");
-        reviewerIocl.setRole("REVIEWER");
+        reviewerIocl.setRole("SENIOR_REVIEWER");
         reviewerIocl.setCpse(iocl);
     }
 
     @Test
-    @DisplayName("Approve mapping auto-mints and publishes the group immediately")
+    @DisplayName("Approve mapping confirms it without changing catalog group lifecycle")
     void testDecideMapping_Approve() {
         when(reviewerAssignmentRepository.findCategoryIdsByUserId(anyLong())).thenReturn(java.util.List.of(1L));
         when(mappingRepository.findById(500L)).thenReturn(Optional.of(mapping));
         when(mappingRepository.save(any(MaterialMapping.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // Auto-mint stubs (called inside applyDecision when group is PROPOSED)
-        when(groupRepository.findLockedById(100L)).thenReturn(Optional.of(group));
-        when(mappingRepository.findByGroup_GroupId(100L)).thenReturn(java.util.List.of(mapping));
-        when(codeGenerator.mintNationalCode(any(), any(), any())).thenReturn("NUMM-401416-CS-050-S40-000100-K");
-        when(groupRepository.save(any(MaterialGroup.class))).thenAnswer(inv -> inv.getArgument(0));
-
         MaterialMapping approved = governanceService.decideMapping(500L, reviewerIocl, "CONFIRMED", "Verified specification equivalence");
 
         assertNotNull(approved);
         assertEquals("CONFIRMED", approved.getStatus());
-        // Group is now auto-minted to ACTIVE on confirmation
-        assertEquals("ACTIVE", group.getStatus(), "Group should auto-publish on confirmation");
-        assertEquals("NUMM-401416-CS-050-S40-000100-K", group.getCommonMaterialCode());
+        assertEquals("PROPOSED", group.getStatus());
+        assertNull(group.getCommonMaterialCode());
 
         verify(auditService).logEvent(
                 eq(reviewerIocl),
@@ -132,18 +122,12 @@ class GovernanceServiceTest {
         reviewerOngc.setUserId(1L);
         reviewerOngc.setName("Pavan ONGC");
         reviewerOngc.setEmail("operator@ongc.res.in");
-        reviewerOngc.setRole("REVIEWER");
+        reviewerOngc.setRole("SENIOR_REVIEWER");
         reviewerOngc.setCpse(ongc); // Same as material's CPSE
 
         when(reviewerAssignmentRepository.findCategoryIdsByUserId(anyLong())).thenReturn(java.util.List.of(1L));
         when(mappingRepository.findById(500L)).thenReturn(Optional.of(mapping));
         when(mappingRepository.save(any(MaterialMapping.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        // Auto-mint stubs
-        when(groupRepository.findLockedById(100L)).thenReturn(Optional.of(group));
-        when(mappingRepository.findByGroup_GroupId(100L)).thenReturn(java.util.List.of(mapping));
-        when(codeGenerator.mintNationalCode(any(), any(), any())).thenReturn("NUMM-401416-CS-050-S40-000100-K");
-        when(groupRepository.save(any(MaterialGroup.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Should NOT throw — COI restriction removed
         MaterialMapping approved = governanceService.decideMapping(500L, reviewerOngc, "CONFIRMED", "Self-CPSE approval is fine now");

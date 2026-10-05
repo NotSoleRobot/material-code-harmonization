@@ -59,6 +59,7 @@ public class AdminUserController {
         List<User> users = userRepository.findAll();
         List<UserProfileDto> result = new ArrayList<>();
         for (User u : users) {
+            if (!List.of("OPERATOR", "SENIOR_REVIEWER", "ADMIN").contains(u.getRole())) continue;
             List<Long> assignedCats = reviewerAssignmentRepository.findCategoryIdsByUserId(u.getUserId());
             UserProfileDto dto = new UserProfileDto(
                     u.getUserId(),
@@ -109,7 +110,7 @@ public class AdminUserController {
         }
 
         String role = request.getRole().trim().toUpperCase();
-        if (!List.of("OPERATOR", "REVIEWER", "SENIOR_REVIEWER", "ADMIN").contains(role)) {
+        if (!List.of("OPERATOR", "SENIOR_REVIEWER", "ADMIN").contains(role)) {
             throw new IllegalArgumentException("Invalid role: " + role);
         }
 
@@ -138,7 +139,7 @@ public class AdminUserController {
 
         // Process reviewer assignments if provided
         List<Long> assignedCategoryIds = new ArrayList<>();
-        if (request.getAssignedCategoryIds() != null && ("REVIEWER".equals(role) || "SENIOR_REVIEWER".equals(role))) {
+        if (request.getAssignedCategoryIds() != null && "SENIOR_REVIEWER".equals(role)) {
             for (Long catId : request.getAssignedCategoryIds()) {
                 MaterialCategory cat = categoryRepository.findById(catId).orElse(null);
                 if (cat != null) {

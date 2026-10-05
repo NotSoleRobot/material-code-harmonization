@@ -1,31 +1,23 @@
-# NUMM five-act demonstration
+# NUMM demonstration
 
-## Act 0 — Reset
+## Act 0 — Preflight
 
-Run `docker compose down -v`, then `docker compose up -d --build`. Wait for all four services to become healthy and confirm the catalog is empty.
+Run `docker compose up -d --build`, wait for all four services to become healthy, and open `http://localhost:3000`. For the hosted demo, run `scripts/preflight_demo.ps1` first so sleeping services are awake.
 
 ## Act 1 — Operator ingestion
 
-Use ONGC Operator quick access. On `/ingest`, upload the ONGC SAP CSV, verify column mapping, submit it, watch the asynchronous job, and open `/my-materials`. The list must contain only ONGC records.
+Use the ONGC Operator account. On `/ingest`, upload the sample CSV, verify column mapping, submit it, and watch the asynchronous job. Point out the separate counts for new records, already-harmonized records, records sent to harmonization, and records needing review.
 
-Explain that extracted attributes are persisted and incomplete identities never become deterministic merge keys.
+Upload the same file again. Existing CPSE material codes should be reported as already harmonized or already awaiting review and should not be sent through matching again.
 
 ## Act 2 — Attribute-aware matching
 
-On `/compare`, compare `CS SEAMLESS PIPE 50MM SCH40 ASTM A106 GRB` with `CARBON STEEL PIPE DN50 SCHEDULE 40 GR.B IS1239`. Show the live relationship, match probability, label probability, checks, warnings, and conflicts. Do not quote a fixed score.
+On `/compare`, compare `CS SEAMLESS PIPE 50MM SCH40 ASTM A106 GRB` with `CARBON STEEL PIPE DN50 SCHEDULE 40 GR.B IS1239`. Show the live relationship, score, checks, warnings, and conflicts. Then compare it with a 200 mm pipe and show the nominal-size conflict. Do not quote a fixed score because it is model output.
 
-Then compare against `CS SEAMLESS PIPE 200MM SCH40 ASTM A106 GRB`. Show the nominal-size conflict and lower match probability.
+## Act 3 — Technical review
 
-## Act 3 — Four-eyes review
+Switch to Senior Reviewer. Open `/review`, inspect the evidence, edit standardized fields if necessary, and approve or reject the suggestion. Explain that all model output remains a proposal until this decision.
 
-Switch to Mechanical Reviewer (IOCL). Approve the ONGC mapping on `/review/:id`. Then attempt an IOCL-submitted record and show the HTTP 409 conflict-of-interest response. The mapping becomes `CONFIRMED`; the group remains `PROPOSED` without a national code.
+## Act 4 — Catalog and audit
 
-## Act 4 — Publication
-
-Switch to Senior Reviewer. On `/publish`, publish the confirmed group. Open `/codes/:code`, show the canonical record and members, validate the code, then alter one character and show validation failing. Explain the ISO/IEC 7064 MOD 37,36 check character.
-
-## Act 5 — Audit and analytics
-
-On `/audit`, verify the chain. Under the demo profile, use the administrator-only tamper action, verify again, and show the broken audit ID. Demonstrate that PostgreSQL refuses a direct audit update.
-
-Finally show `/dashboard`: deduplication, rate-contract candidates, price variance, and explicit procurement assumptions. Do not use invented savings values. Close with the Scope and limitations section in `SYSTEM_STATUS_AND_ARCHITECTURE.md`.
+Open `/catalog` and search by description, enterprise material code, or catalog reference. Show the harmonized group and its member records. Then open `/audit` and verify the hash chain. Finish on `/dashboard` with ingestion totals, harmonized groups, consolidation rate, review counts, enterprise coverage, and category distribution.

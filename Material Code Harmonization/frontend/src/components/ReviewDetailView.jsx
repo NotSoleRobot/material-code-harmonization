@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import { api } from "../services/api";
 import { useAuth } from "../context/useAuth";
-import { CodeChip } from "./common/CodeChip";
 import { ConfidenceTierBadge } from "./common/ConfidenceTierBadge";
 import { AttributeComparisonTable } from "./common/AttributeComparisonTable";
 import { ErrorPanel } from "./common/ErrorPanel";
@@ -17,7 +16,7 @@ import { LoadingSkeleton } from "./common/LoadingSkeleton";
 export function ReviewDetailView() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, hasRole } = useAuth();
+  const { hasRole } = useAuth();
 
   // Action states
   const [actionLoading, setActionLoading] = useState(false);
@@ -54,7 +53,7 @@ export function ReviewDetailView() {
     setActionError(null);
     try {
       await api.approveMapping(id, approveNotes);
-      setActionSuccess("Mapping confirmed. The group remains provisional until a senior reviewer publishes it.");
+      setActionSuccess("Mapping confirmed and added to the harmonized catalog.");
       setShowApproveModal(false);
       loadMapping();
     } catch (err) {
@@ -111,20 +110,6 @@ export function ReviewDetailView() {
     }
   };
 
-  const handleFastTrack = async () => {
-    setActionLoading(true);
-    setActionError(null);
-    try {
-      const result = await api.approveAndPublish(id);
-      setActionSuccess(`Published successfully as ${result.code}.`);
-      await loadMapping();
-    } catch (err) {
-      setActionError(err.message || "Fast-track publication failed.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   if (loading) {
     return (
       <div style={{ padding: "1.5rem" }}>
@@ -144,12 +129,7 @@ export function ReviewDetailView() {
     );
   }
 
-  // Conflict of Interest check: ordinary reviewers cannot decide their own CPSE's materials.
-  const userCpseName = typeof user?.cpse === "string" ? user.cpse : user?.cpse?.name;
-  const isOwnCpse = Boolean(userCpseName && mapping.cpseName
-    && userCpseName.trim().toUpperCase() === mapping.cpseName.trim().toUpperCase());
-  const canApprove = hasRole(["REVIEWER", "SENIOR_REVIEWER"])
-    && (!isOwnCpse || hasRole("SENIOR_REVIEWER"));
+  const canApprove = hasRole(["SENIOR_REVIEWER", "ADMIN"]);
 
   // Parse explanation JSON
   let explanation = null;
@@ -210,16 +190,6 @@ export function ReviewDetailView() {
         )}
       </div>
 
-      {/* Four-Eyes Conflict of Interest Alert */}
-      {isOwnCpse && hasRole("REVIEWER") && (
-        <div style={{ display: "flex", gap: "0.75rem", background: "var(--warning-bg)", border: "1px solid var(--warning-border)", borderRadius: "var(--radius-md)", padding: "0.85rem 1.15rem" }}>
-          <ShieldAlert size={16} color="var(--warning)" style={{ flexShrink: 0, marginTop: "2px" }} />
-          <div style={{ fontSize: "0.825rem", color: "var(--warning-text)" }}>
-            <strong>Four-Eyes Governance Policy:</strong> You belong to <strong>{user.cpse.name}</strong>, which submitted this item. To prevent self-approvals, a reviewer from another CPSE or a senior reviewer must validate this record.
-          </div>
-        </div>
-      )}
-
       {/* Main Side-by-Side Comparison Grid */}
       <div className="review-comparison-grid">
         {/* Left: Raw Ingested CPSE Item */}
@@ -266,15 +236,9 @@ export function ReviewDetailView() {
           </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
             <div>
-              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>National Unified Code</div>
+              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>Catalog reference</div>
               <div style={{ marginTop: "4px" }}>
-                {mapping.commonMaterialCode ? (
-                  <CodeChip code={mapping.commonMaterialCode} size="lg" />
-                ) : (
-                  <span style={{ fontSize: "0.8rem", color: "var(--text-dim)", fontStyle: "italic" }}>
-                    Provisional / Will be minted upon approval
-                  </span>
-                )}
+                <span className="badge badge-accent font-mono">{mapping.provisionalRef || `GROUP-${mapping.targetGroupId || mapping.materialGroupId}`}</span>
               </div>
             </div>
             <div>
@@ -372,7 +336,7 @@ export function ReviewDetailView() {
             </button>
           )}
 
-          {hasRole(["REVIEWER", "SENIOR_REVIEWER"]) && mapping.status === "PENDING" && (
+          {hasRole(["SENIOR_REVIEWER", "ADMIN"]) && mapping.status === "PENDING" && (
             <button className="btn btn-outline btn-sm" onClick={() => {
               setEditForm({
                 targetGroupId: mapping.targetGroupId || mapping.materialGroupId || "",
@@ -385,13 +349,6 @@ export function ReviewDetailView() {
             </button>
           )}
 
-          {isOwnCpse && !hasRole("SENIOR_REVIEWER") && mapping.status === "PENDING" && (
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", color: "var(--warning)", fontSize: "0.8rem", background: "var(--warning-bg)", padding: "0.35rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--warning-border)" }}>
-              <ShieldAlert size={14} />
-              <span>Conflict of Interest: You belong to {userCpseName}; independent or senior review required.</span>
-            </div>
-          )}
-
           {canApprove && mapping.status === "PENDING" && (
             <>
               <button className="btn btn-danger btn-sm" onClick={() => setShowRejectModal(true)}>
@@ -401,14 +358,6 @@ export function ReviewDetailView() {
                 <CheckCircle2 size={14} /> Confirm Mapping
               </button>
             </>
-          )}
-          {hasRole(["SENIOR_REVIEWER", "ADMIN"])
-            && (mapping.status === "CONFIRMED" || (mapping.status === "PENDING" && hasRole("ADMIN")))
-            && mapping.confidenceTier === "HIGH"
-            && Number(mapping.confidenceScore || 0) >= 0.85 && (
-            <button className="btn btn-primary btn-sm" onClick={handleFastTrack} disabled={actionLoading}>
-              <CheckCircle2 size={14} /> Approve &amp; Publish
-            </button>
           )}
         </div>
       </div>
@@ -422,7 +371,7 @@ export function ReviewDetailView() {
             </div>
             <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
               <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>
-                Approving this mapping confirms the material-to-group relationship. A separate authorized reviewer can then publish its authoritative <strong>NUMM-CCCCCC-MM-DDD-RRR-NNNNNN-K</strong> code with an ISO 7064 MOD 37,36 check character.
+                Approving this mapping confirms the material-to-group relationship and makes the reviewed result available in the harmonized catalog.
               </p>
               <div>
                 <label className="form-label" style={{ fontSize: "0.75rem" }}>Statutory Governance Notes *</label>

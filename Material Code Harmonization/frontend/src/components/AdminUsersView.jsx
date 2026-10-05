@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   UserPlus, Shield, Building2, CheckCircle2,
-  AlertCircle, RefreshCw, X, Layers
+  AlertCircle, RefreshCw, X
 } from "lucide-react";
 import { api } from "../services/api";
 import { useAuth } from "../context/useAuth";
@@ -12,8 +12,7 @@ import { Table } from "./common/Table";
 
 const ROLE_OPTIONS = [
   { value: "OPERATOR", label: "CPSE Operator (Data Ingestion & Catalog Search)" },
-  { value: "REVIEWER", label: "Master Reviewer (Four-Eyes Governance & Approvals)" },
-  { value: "SENIOR_REVIEWER", label: "Senior Reviewer (Publication & Minting)" },
+  { value: "SENIOR_REVIEWER", label: "Senior Reviewer (Technical Governance)" },
   { value: "ADMIN", label: "System Administrator (Security, Config & Overrides)" },
 ];
 
@@ -57,7 +56,7 @@ export function AdminUsersView() {
         password: formData.password,
         role: formData.role,
         cpseId: formData.role === "OPERATOR" ? Number(formData.cpseId) : null,
-        assignedCategoryIds: ["REVIEWER", "SENIOR_REVIEWER"].includes(formData.role)
+        assignedCategoryIds: formData.role === "SENIOR_REVIEWER"
           ? formData.assignedCategoryIds.map(Number)
           : [],
       };
@@ -88,8 +87,6 @@ export function AdminUsersView() {
     switch (role) {
       case "ADMIN":
         return <span className="badge badge-danger"><Shield size={11} /> Admin</span>;
-      case "REVIEWER":
-        return <span className="badge badge-warning"><Layers size={11} /> Master Reviewer</span>;
       case "SENIOR_REVIEWER":
         return <span className="badge badge-info"><Shield size={11} /> Senior Reviewer</span>;
       case "OPERATOR":
@@ -314,7 +311,7 @@ export function AdminUsersView() {
                   </div>
                 )}
 
-                {["REVIEWER", "SENIOR_REVIEWER"].includes(formData.role) && (
+                {formData.role === "SENIOR_REVIEWER" && (
                   <fieldset className="category-assignment">
                     <legend className="form-label">Assigned review categories</legend>
                     {(options.categories || []).map((category) => (

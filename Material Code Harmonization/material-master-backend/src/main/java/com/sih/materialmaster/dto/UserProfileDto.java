@@ -13,7 +13,7 @@ public class UserProfileDto {
     private Long userId;
     private String name;
     private String email;
-    private String role; // OPERATOR | REVIEWER | SENIOR_REVIEWER | ADMIN
+    private String role; // OPERATOR | SENIOR_REVIEWER | ADMIN
     private CpseInfo cpse;
     private List<Long> assignedCategoryIds;
 

@@ -74,7 +74,7 @@ public class ExportService {
     }
 
     /**
-     * Streams the WP10 SAP ERP template: MATNR, MAKTX, MEINS, MATKL, NUMM_CODE.
+     * Streams an SAP-friendly catalog cross-reference template.
      */
     @Transactional
     public int streamSapErpTemplate(Long cpseId, OutputStream outputStream, User user) throws IOException {
@@ -87,18 +87,18 @@ public class ExportService {
         outputStream.write(0xBB);
         outputStream.write(0xBF);
         try (CSVPrinter printer = new CSVPrinter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8),
-                CSVFormat.DEFAULT.builder().setHeader("MATNR", "MAKTX", "MEINS", "MATKL", "NUMM_CODE").build())) {
+                CSVFormat.DEFAULT.builder().setHeader("MATNR", "MAKTX", "MEINS", "MATKL", "CATALOG_REF").build())) {
 
             int count = 0;
             for (Material m : materials) {
                 Optional<MaterialMapping> active = mappingRepository.findActiveByMaterialId(m.getMaterialId());
-                String nummCode = "";
+                String catalogReference = "";
                 String stdDesc = "";
                 String materialGroup = m.getCategory() != null ? m.getCategory().getName() : "GENERAL";
 
                 if (active.isPresent() && active.get().getGroup() != null) {
                     MaterialGroup g = active.get().getGroup();
-                    nummCode = g.getCommonMaterialCode() != null ? g.getCommonMaterialCode() : g.getProvisionalRef();
+                    catalogReference = g.getProvisionalRef();
                     stdDesc = g.getStandardizedDescription();
                 }
 
@@ -107,7 +107,7 @@ public class ExportService {
                         stdDesc,
                         m.getUnitOfMeasure() != null ? m.getUnitOfMeasure() : "NOS",
                         materialGroup,
-                        nummCode
+                        catalogReference
                 );
                 count++;
             }
@@ -124,7 +124,7 @@ public class ExportService {
         try (CSVPrinter printer = new CSVPrinter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8),
                 CSVFormat.DEFAULT.builder().setHeader(
                         "CPSE", "Plant_Material_Code", "Raw_Description", "Specification",
-                        "National_Material_Code", "Provisional_Ref", "Standardized_Description",
+                        "Legacy_Reference", "Catalog_Reference", "Standardized_Description",
                         "Commodity_Class", "UOM", "Mapping_Status", "Confidence_Tier", "Confidence_Score"
                 ).build())) {
 
@@ -172,7 +172,7 @@ public class ExportService {
             Sheet sheet = workbook.createSheet("Cross Reference Index");
             String[] headers = {
                     "CPSE", "Plant Code", "Raw Description", "Specification",
-                    "National Code", "Provisional Ref", "Standardized Description",
+                    "Legacy Reference", "Catalog Reference", "Standardized Description",
                     "Category", "UOM", "Status", "Confidence Tier", "Score"
             };
 
@@ -222,7 +222,7 @@ public class ExportService {
     private void writeMasterCatalogCsv(List<MaterialGroup> groups, OutputStream outputStream) throws IOException {
         try (CSVPrinter printer = new CSVPrinter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8),
                 CSVFormat.DEFAULT.builder().setHeader(
-                        "National_Material_Code", "Provisional_Ref", "Status", "Standardized_Description",
+                        "Legacy_Reference", "Catalog_Reference", "Status", "Standardized_Description",
                         "Specification", "UOM", "Category", "UNSPSC_Segment", "UNSPSC_Family", "UNSPSC_Class",
                         "Linked_CPSE_Count", "Total_Member_Materials"
                 ).build())) {
@@ -258,9 +258,9 @@ public class ExportService {
 
     private void writeMasterCatalogXlsx(List<MaterialGroup> groups, OutputStream outputStream) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100)) {
-            Sheet sheet = workbook.createSheet("National Master Catalog");
+            Sheet sheet = workbook.createSheet("Unified Material Catalog");
             String[] headers = {
-                    "National Code", "Provisional Ref", "Status", "Standardized Description",
+                    "Legacy Reference", "Catalog Reference", "Status", "Standardized Description",
                     "Specification", "UOM", "Category", "Segment", "Family", "Class", "CPSE Count", "Total Mappings"
             };
 

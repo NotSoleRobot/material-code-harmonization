@@ -25,7 +25,7 @@ export function CatalogView() {
   const query = searchParams.get("q") || "";
   const selectedCategory = searchParams.get("category") || "ALL";
   const viewMode = searchParams.get("view") || "canonical"; // 'canonical' or 'crossref'
-  const selectedStatus = searchParams.get("status") || "ACTIVE";
+  const selectedStatus = "ALL";
   const page = Math.max(0, Number.parseInt(searchParams.get("page") || "0", 10) || 0);
   const pageSize = [20, 50, 100].includes(Number(searchParams.get("size")))
     ? Number(searchParams.get("size")) : 20;
@@ -84,17 +84,6 @@ export function CatalogView() {
     setSearchParams(newParams);
   };
 
-  const handleStatusFilter = (status) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (status === "ACTIVE") {
-      newParams.delete("status");
-    } else {
-      newParams.set("status", status);
-    }
-    newParams.delete("page");
-    setSearchParams(newParams);
-  };
-
   const handlePageChange = (nextPage) => {
     const newParams = new URLSearchParams(searchParams);
     if (nextPage <= 0) newParams.delete("page");
@@ -135,7 +124,7 @@ export function CatalogView() {
         </div>
         <div className="page-actions">
           {isOperator ? (
-            <Link to="/ingest" className="btn btn-primary" id="btn-request-code">
+            <Link to="/ingest" className="btn btn-primary" id="btn-submit-material">
               <PlusCircle size={15} aria-hidden="true" /> {t("catalog.requestCodeBtn")}
             </Link>
           ) : canExport ? (
@@ -177,25 +166,6 @@ export function CatalogView() {
             </div>
 
             <>
-                {/* Status lifecycle tabs */}
-                <div className="btn-group" style={{ marginRight: "0.5rem" }}>
-                  {[
-                    { key: "ALL", label: "All Statuses" },
-                    { key: "ACTIVE", label: "Published" },
-                    { key: "PROPOSED", label: "Provisional" },
-                    { key: "SUPERSEDED", label: "Superseded" },
-                  ].map(({ key, label }) => (
-                    <button
-                      key={key}
-                      className={`btn btn-sm ${selectedStatus === key ? "btn-primary" : "btn-outline"}`}
-                      onClick={() => handleStatusFilter(key)}
-                      id={`tab-status-${key.toLowerCase()}`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
                 {/* View mode toggle */}
                 <div className="btn-group">
                   <button
@@ -224,25 +194,10 @@ export function CatalogView() {
       ) : filteredResults.length === 0 ? (
         <div className="card text-center p-5">
           <p className="text-lg font-medium text-muted mb-3">{t("catalog.emptySearch")}</p>
-          {selectedStatus === "ACTIVE" && (
-            <div style={{ marginBottom: "1.25rem" }}>
-              <p className="text-sm text-dim mb-3">
-                No published canonical codes found. Newly harmonized materials start as <strong>Provisional</strong> candidate records until approved.
-              </p>
-              <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem" }}>
-                <button className="btn btn-outline btn-sm" onClick={() => handleStatusFilter("ALL")}>
-                  View All Statuses
-                </button>
-                <button className="btn btn-outline btn-sm" onClick={() => handleStatusFilter("PROPOSED")}>
-                  View Provisional Records
-                </button>
-              </div>
-            </div>
-          )}
           {isOperator && (
             <div>
               <p className="text-sm text-dim mb-4">
-                Does your required material not exist in the national registry? You can submit a request for a new national code.
+                Does your required material not exist in the catalog? Submit it for harmonization.
               </p>
               <Link to="/ingest" className="btn btn-primary">
                 <PlusCircle size={15} /> {t("catalog.requestCodeBtn")}
@@ -256,7 +211,7 @@ export function CatalogView() {
             <Table caption="Canonical material master">
               <thead>
                 <tr>
-                  <th scope="col" style={{ width: "22%" }}>National Material Code</th>
+                  <th scope="col" style={{ width: "22%" }}>Catalog Reference</th>
                   <th scope="col" style={{ width: "38%" }}>Standardized Description</th>
                   <th scope="col" style={{ width: "15%" }}>Commodity Class</th>
                   <th scope="col" style={{ width: "8%" }}>UOM</th>
@@ -266,14 +221,12 @@ export function CatalogView() {
               </thead>
               <tbody>
                 {filteredResults.map((group) => {
-                  const code = group.commonMaterialCode || group.provisionalRef;
-                  const isProv = !group.commonMaterialCode;
+                  const code = group.provisionalRef || `GROUP-${group.groupId}`;
                   return (
                     <tr key={group.provisionalRef || group.commonMaterialCode}>
                       <td>
                         <CodeChip
                           code={code}
-                          provisional={isProv}
                           size="md"
                           categoryPath={group.categoryPath}
                         />
@@ -289,13 +242,13 @@ export function CatalogView() {
                       </td>
                       <td>{group.standardizedUom || "NOS"}</td>
                       <td className="text-center">
-                        <span className={`badge ${group.status === "ACTIVE" ? "badge-success" : "badge-warning"}`}>
-                          {group.status}
+                        <span className={`badge ${group.status === "HARMONIZED" ? "badge-success" : "badge-warning"}`}>
+                          {group.status === "HARMONIZED" ? "Harmonized" : "Needs review"}
                         </span>
                       </td>
                       <td className="text-center">
                         <Link
-                          to={`/codes/${encodeURIComponent(code)}`}
+                          to={`/catalog/${encodeURIComponent(code)}`}
                           className="btn btn-ghost btn-sm btn-icon"
                           title={t("catalog.viewDetails")}
                           aria-label={`View details for ${code}`}
@@ -318,7 +271,7 @@ export function CatalogView() {
                   <th scope="col">CPSE</th>
                   <th scope="col">Plant Material Code</th>
                   <th scope="col">Raw Material Description</th>
-                  <th scope="col">National Master Code</th>
+                  <th scope="col">Catalog Reference</th>
                   <th scope="col">Standardized Specification</th>
                   <th scope="col">Mapping Status</th>
                 </tr>
@@ -332,7 +285,7 @@ export function CatalogView() {
                       <td>{m.rawDescription}</td>
                       <td>
                         <CodeChip
-                          code={group.commonMaterialCode || group.provisionalRef}
+                          code={group.provisionalRef}
                           size="sm"
                           categoryPath={group.categoryPath}
                         />
@@ -389,7 +342,7 @@ export function CatalogView() {
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="export-modal-title">
           <div className="modal-card">
             <h2 id="export-modal-title" className="text-lg font-bold mb-3">
-              Export National Catalog Data
+              Export Unified Catalog Data
             </h2>
             <p className="text-sm text-muted mb-4">
               Select desired catalog dataset and export format. All data exports write verifiable records to the governance audit trail.
@@ -431,7 +384,7 @@ export function CatalogView() {
               >
                 <div>
                   <div className="font-semibold">Cross-Reference Index</div>
-                  <div className="text-xs text-muted">CPSE plant codes mapped to National Material Codes</div>
+                  <div className="text-xs text-muted">CPSE plant codes mapped to catalog references</div>
                 </div>
                 <Download size={16} />
               </button>
@@ -455,7 +408,7 @@ export function CatalogView() {
               >
                 <div>
                   <div className="font-semibold">SAP ERP Mapping Template</div>
-                  <div className="text-xs text-muted">Standard MATNR, NUMM_CODE, MAKTX_STD integration file</div>
+                  <div className="text-xs text-muted">Standard MATNR, CATALOG_REF, MAKTX integration file</div>
                 </div>
                 <Download size={16} />
               </button>

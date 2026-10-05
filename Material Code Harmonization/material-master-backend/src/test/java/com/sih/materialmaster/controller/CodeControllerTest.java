@@ -31,6 +31,7 @@ class CodeControllerTest {
     @Test
     void searchReturnsPageAndClampsBounds() {
         MaterialGroup group = new MaterialGroup();
+        group.setGroupId(1L);
         group.setProvisionalRef("PROV-2026-000001");
         group.setStatus("ACTIVE");
         group.setStandardizedDescription("General MRO item");
@@ -38,8 +39,8 @@ class CodeControllerTest {
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
         when(groupRepository.findByStatus(eq("ACTIVE"), pageableCaptor.capture()))
                 .thenReturn(new PageImpl<>(List.of(group)));
-        when(mappingRepository.findByGroup_GroupId(null)).thenReturn(List.of());
-        when(relationRepository.findByGroupA_GroupIdOrGroupB_GroupId(null, null)).thenReturn(List.of());
+        when(mappingRepository.findCatalogMappingsForGroups(List.of(1L))).thenReturn(List.of());
+        when(relationRepository.findForGroups(List.of(1L))).thenReturn(List.of());
 
         var response = new CodeController(groupRepository, mappingRepository, relationRepository)
                 .searchCodes("", "ACTIVE", null, -4, 500, null);

@@ -11,7 +11,6 @@ export function Header({ onMenuToggle }) {
     switch (role) {
       case "ADMIN": return "badge-danger";
       case "SENIOR_REVIEWER": return "badge-warning";
-      case "REVIEWER": return "badge-info";
       default: return "badge-neutral";
     }
   };

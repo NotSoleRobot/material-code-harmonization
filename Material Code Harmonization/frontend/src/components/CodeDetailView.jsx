@@ -7,8 +7,6 @@ import {
   Building2,
   GitFork,
   Hash,
-  CheckCircle2,
-  AlertCircle,
 } from "lucide-react";
 import { CodeChip } from "./common/CodeChip";
 import { LoadingSkeleton } from "./common/LoadingSkeleton";
@@ -27,12 +25,6 @@ export function CodeDetailView() {
     queryFn: () => api.getCodeDetails(code),
   });
 
-  const { data: validation } = useQuery({
-    queryKey: ["codeValidation", code],
-    queryFn: () => api.validateCode(code),
-    enabled: !!code && !code.startsWith("PROV-"),
-  });
-
   if (isLoading) {
     return (
       <div className="page-container">
@@ -49,13 +41,12 @@ export function CodeDetailView() {
             <ArrowLeft size={14} /> Back to Catalog
           </Link>
         </div>
-        <ErrorPanel error={error || "National code not found"} onRetry={refetch} />
+        <ErrorPanel error={error || "Catalog record not found"} onRetry={refetch} />
       </div>
     );
   }
 
-  const isProv = !details.commonMaterialCode;
-  const activeCode = details.commonMaterialCode || details.provisionalRef;
+  const catalogReference = details.provisionalRef;
 
   return (
     <div className="page-container">
@@ -71,29 +62,16 @@ export function CodeDetailView() {
         <div className="detail-hero-header">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className={`badge ${details.status === "ACTIVE" ? "badge-success" : "badge-warning"}`}>
-                {details.status === "ACTIVE" ? "ACTIVE NATIONAL CODE" : "PROVISIONAL REFERENCE"}
+              <span className={`badge ${details.status === "HARMONIZED" ? "badge-success" : "badge-warning"}`}>
+                {details.status === "HARMONIZED" ? "HARMONIZED" : "NEEDS REVIEW"}
               </span>
               <span className="badge badge-neutral">{details.categoryName}</span>
             </div>
             <h1 className="text-2xl font-bold font-mono text-accent flex items-center gap-3">
-              <CodeChip code={activeCode} provisional={isProv} size="lg" />
+              <CodeChip code={catalogReference} provisional size="lg" />
             </h1>
           </div>
 
-          {validation && (
-            <div className="validation-chip">
-              {validation.valid ? (
-                <div className="flex items-center gap-1.5 text-success text-sm font-semibold">
-                  <CheckCircle2 size={16} /> ISO 7064 MOD 37,36 Checksum Verified
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 text-danger text-sm font-semibold">
-                  <AlertCircle size={16} /> Invalid Checksum
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-border">
@@ -152,7 +130,7 @@ export function CodeDetailView() {
         </div>
         <div className="table-responsive">
           <table className="data-table" aria-label="Member Materials Table">
-            <caption>CPSE material records mapped to this national material code</caption>
+            <caption>Enterprise material records mapped to this harmonized catalog group</caption>
             <thead>
               <tr>
                 <th scope="col">CPSE Enterprise</th>
@@ -216,7 +194,7 @@ export function CodeDetailView() {
               <thead>
                 <tr>
                   <th scope="col">Relationship Type</th>
-                  <th scope="col">Related National Code</th>
+                  <th scope="col">Related Catalog Reference</th>
                   <th scope="col">Standardized Description</th>
                   <th scope="col" className="text-right">Action</th>
                 </tr>
@@ -228,12 +206,12 @@ export function CodeDetailView() {
                       <span className="badge badge-accent font-bold">{rg.relationType}</span>
                     </td>
                     <td>
-                      <CodeChip code={rg.commonMaterialCode || rg.provisionalRef} size="sm" />
+                      <CodeChip code={rg.provisionalRef} provisional size="sm" />
                     </td>
                     <td>{rg.description}</td>
                     <td className="text-right">
                       <Link
-                        to={`/codes/${encodeURIComponent(rg.commonMaterialCode || rg.provisionalRef)}`}
+                        to={`/catalog/${encodeURIComponent(rg.provisionalRef)}`}
                         className="btn btn-ghost btn-sm"
                       >
                         View Record

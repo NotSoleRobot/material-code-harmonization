@@ -19,8 +19,6 @@ public class DashboardStatsDto {
     private long unmatchedCount;
     private long totalCpses;
     private double deduplicationRate;
-    private double estimatedSavingsInrLakhs;
-    private SavingsBreakdownDto savingsBreakdown;
     private List<CpseStatDto> cpseBreakdown;
     private Map<String, Long> categoryDistribution;
 
@@ -31,17 +29,5 @@ public class DashboardStatsDto {
         private String cpseName;
         private long materialCount;
         private long mappedCount;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class SavingsBreakdownDto {
-        private double directPriceArbitrageLakhs;
-        private double inventoryHoldingAvoidanceLakhs;
-        private double adminDataCleanupAvoidanceLakhs;
-        private double totalLakhs;
-        private double inventoryCarryingRatePct;
-        private long pricedDuplicateItems;
     }
 }

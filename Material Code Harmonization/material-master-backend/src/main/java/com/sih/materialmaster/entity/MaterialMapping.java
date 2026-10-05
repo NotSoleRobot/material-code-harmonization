@@ -51,7 +51,7 @@ public class MaterialMapping {
     @Column(name = "match_basis", length = 30)
     private String matchBasis;
 
-    // AUTO | HUMAN | LEGACY. Publication remains a separate governance decision.
+    // AUTO | HUMAN | LEGACY. This records how the mapping decision was produced.
     @Column(name = "decision_source", nullable = false, length = 20)
     private String decisionSource = "LEGACY";
 

@@ -15,13 +15,12 @@ const ACTION_FILTERS = [
   { key: "MAPPING_CONFIRMED", label: "Approvals" },
   { key: "MAPPING_REJECTED", label: "Rejections" },
   { key: "MAPPING_SUPERSEDED", label: "Admin Overrides" },
-  { key: "CODE_MINTED", label: "Codes Published" },
 ];
 
 // Events that count as manual governance decisions
 const REVIEW_DECISION_ACTIONS = new Set([
   "MAPPING_CONFIRMED", "MAPPING_REJECTED", "MAPPING_SUPERSEDED",
-  "MAPPING_EDITED", "CODE_MINTED", "BULK_APPROVAL",
+  "MAPPING_EDITED", "BULK_APPROVAL",
 ]);
 
 export function AuditTrailView() {
@@ -124,7 +123,7 @@ export function AuditTrailView() {
         <div>
           <h1 className="page-title">Audit Trail</h1>
           <p className="page-subtitle">
-            Review material ingestion, harmonization, approval, and publication events.
+            Review material ingestion, harmonization, and technical decision events.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>

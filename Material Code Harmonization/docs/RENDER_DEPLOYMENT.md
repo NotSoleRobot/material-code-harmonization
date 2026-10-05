@@ -64,7 +64,7 @@ values, provide:
 |---|---|
 | Frontend `VITE_API_BASE_URL` | Public backend origin, for example `https://numm-spring-api.onrender.com` |
 | Backend `MATCHING_SERVICE_URL` | Public matching-service origin, for example `https://numm-matching.onrender.com` |
-| Backend `CORS_ALLOWED_ORIGINS` | Exact frontend origin, for example `https://numm-frontend.onrender.com` |
+| Backend `CORS_ALLOWED_ORIGINS` | Exact frontend origin: `https://numm-frontend-2r6s.onrender.com` |
 | Backend `BOOTSTRAP_ADMIN_PASSWORD` | A new, private password with at least 14 characters |
 
 Do not add `/api` to `VITE_API_BASE_URL`; the frontend adds it. Do not add a trailing

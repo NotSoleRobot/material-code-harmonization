@@ -153,7 +153,7 @@ public class AuditService {
     private void validateEntityType(String entityType) {
         Set<String> allowed = Set.of(
                 "MATERIAL", "MATERIAL_GROUP", "MATERIAL_MAPPING", "USER",
-                "EXPORT", "JOB", "CATEGORY", "PROCUREMENT_ASSUMPTION", "GROUP_RELATION"
+                "EXPORT", "JOB", "CATEGORY", "GROUP_RELATION"
         );
         if (entityType == null || !allowed.contains(entityType.toUpperCase())) {
             throw new IllegalArgumentException("Invalid audit entity_type: " + entityType);

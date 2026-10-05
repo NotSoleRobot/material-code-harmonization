@@ -23,10 +23,10 @@ public class CreateUserRequest {
     @NotBlank(message = "Password is required")
     private String password;
 
-    @NotBlank(message = "Role is required (OPERATOR, REVIEWER, SENIOR_REVIEWER, ADMIN)")
+    @NotBlank(message = "Role is required (OPERATOR, SENIOR_REVIEWER, ADMIN)")
     private String role;
 
     private Long cpseId; // required for OPERATOR
 
-    private List<Long> assignedCategoryIds; // for REVIEWER
+    private List<Long> assignedCategoryIds; // optional category scope for SENIOR_REVIEWER
 }

@@ -41,6 +41,12 @@ public class HarmonizationJob {
     @Column(name = "skipped_items", nullable = false)
     private Integer skippedItems = 0;
 
+    @Column(name = "already_harmonized", nullable = false)
+    private Integer alreadyHarmonized = 0;
+
+    @Column(name = "queued_for_harmonization", nullable = false)
+    private Integer queuedForHarmonization = 0;
+
     @Column(name = "auto_harmonized", nullable = false)
     private Integer autoHarmonized = 0;
 

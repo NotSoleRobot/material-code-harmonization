@@ -106,7 +106,7 @@ def render_raw_records(canonicals, variants_per_canonical: int, engine: TextVari
         # Guarantee at least one EXACT_DUPLICATE pair per canonical: render one variant
         # twice with identical style/unit/no-noise (simulates literal re-ingestion of the
         # same source description by a second CPSE, which does happen in practice).
-        base_style, base_unit = rng.choice(["TERSE", "VERBOSE", "LEGACY", "PROCUREMENT"]), rng.choice(["mm", "inch"])
+        base_style, base_unit = rng.choice(["TERSE", "VERBOSE", "LEGACY", "OPERATIONS"]), rng.choice(["mm", "inch"])
         desc0, spec0 = engine.render(cm["category"], cm["attrs"], style=base_style,
                                       unit_style=base_unit, include_noise=False)
         for k in range(n):

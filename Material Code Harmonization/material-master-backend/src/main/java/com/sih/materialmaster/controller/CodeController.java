@@ -2,11 +2,9 @@ package com.sih.materialmaster.controller;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sih.materialmaster.dto.CodeValidationDto;
 import com.sih.materialmaster.dto.NationalCodeDetailsDto;
 import com.sih.materialmaster.entity.*;
 import com.sih.materialmaster.repository.*;
-import com.sih.materialmaster.util.Iso7064Mod3736;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
@@ -19,11 +17,10 @@ import com.sih.materialmaster.security.UserPrincipal;
 import java.util.*;
 
 /**
- * Endpoints for National Material Code lookup, validation, and search (W2.6 / FR6 / FR7).
- * External ERP systems and internal users can resolve codes and check validity.
+ * Endpoints for harmonized catalog lookup and search.
  */
 @RestController
-@RequestMapping("/api/codes")
+@RequestMapping("/api/catalog")
 public class CodeController {
 
     private final MaterialGroupRepository groupRepository;
@@ -40,7 +37,7 @@ public class CodeController {
     }
 
     /**
-     * Resolves a national material code (or provisional ref) to canonical record and linked materials.
+     * Resolves a catalog reference to its harmonized record and linked materials.
      */
     @GetMapping("/{code}")
     @Transactional(readOnly = true)
@@ -49,46 +46,12 @@ public class CodeController {
         String clean = code.trim().toUpperCase();
         MaterialGroup group = groupRepository.findByCommonMaterialCode(clean)
                 .or(() -> groupRepository.findByProvisionalRef(clean))
-                .orElseThrow(() -> new IllegalArgumentException("No national material group found for code: " + code));
+                .orElseThrow(() -> new IllegalArgumentException("No material group found for catalog reference: " + code));
 
         if (!"ACTIVE".equals(group.getStatus()) && !"PROPOSED".equals(group.getStatus()) && !"SUPERSEDED".equals(group.getStatus())) {
             throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Code not found: " + code);
         }
         return ResponseEntity.ok(toDetailsDto(group, viewer));
-    }
-
-    /**
-     * Validates a national material code using ISO 7064 MOD 37,36.
-     */
-    @GetMapping("/{code}/validate")
-    public ResponseEntity<CodeValidationDto> validateCode(@PathVariable String code) {
-        String clean = code.trim().toUpperCase();
-        boolean isValid = Iso7064Mod3736.validate(clean);
-
-        CodeValidationDto dto = new CodeValidationDto();
-        dto.setCode(clean);
-        dto.setValid(isValid);
-
-        // Parse structure: NUMM-CCCCCC-MM-DDD-RRR-NNNNNN-K
-        String[] parts = clean.split("-");
-        if (parts.length == 7 && parts[1].length() == 6) {
-            dto.setSegment(parts[1].substring(0, 2));
-            dto.setFamily(parts[1].substring(2, 4));
-            dto.setCommodityClass(parts[1].substring(4, 6));
-            dto.setMaterialKey(parts[2]);
-            dto.setDimensionKey(parts[3]);
-            dto.setRatingKey(parts[4]);
-            dto.setSerial(parts[5]);
-            dto.setCheckCharacter(parts[6]);
-        }
-
-        if (isValid) {
-            dto.setMessage("National material code is valid with verified ISO 7064 MOD 37,36 checksum.");
-        } else {
-            dto.setMessage("Invalid code: check character mismatch or format error detected.");
-        }
-
-        return ResponseEntity.ok(dto);
     }
 
     /**
@@ -98,13 +61,13 @@ public class CodeController {
     @Transactional(readOnly = true)
     public ResponseEntity<Page<NationalCodeDetailsDto>> searchCodes(
             @RequestParam(required = false) String q,
-            @RequestParam(required = false, defaultValue = "ACTIVE") String status,
+            @RequestParam(required = false, defaultValue = "ALL") String status,
             @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserPrincipal viewer) {
         String query = (q != null && !q.isBlank()) ? q.trim() : "";
-        String effectiveStatus = ("ALL".equalsIgnoreCase(status)) ? null : (status != null && !status.isBlank() ? status.trim().toUpperCase() : "ACTIVE");
+        String effectiveStatus = ("ALL".equalsIgnoreCase(status)) ? null : (status != null && !status.isBlank() ? status.trim().toUpperCase() : null);
         String effectiveCategory = (category == null || category.isBlank() || "ALL".equalsIgnoreCase(category))
                 ? null : category.trim();
         var pageable = PageRequest.of(
@@ -121,7 +84,24 @@ public class CodeController {
             groups = groupRepository.searchGroups(query, effectiveStatus, effectiveCategory, pageable);
         }
 
-        return ResponseEntity.ok(groups.map(group -> toDetailsDto(group, viewer)));
+        if (groups.isEmpty()) return ResponseEntity.ok(groups.map(group -> toDetailsDto(group, viewer)));
+
+        List<Long> groupIds = groups.getContent().stream().map(MaterialGroup::getGroupId).toList();
+        Map<Long, List<MaterialMapping>> mappingsByGroup = mappingRepository
+                .findCatalogMappingsForGroups(groupIds).stream()
+                .collect(java.util.stream.Collectors.groupingBy(mm -> mm.getGroup().getGroupId()));
+        List<GroupRelation> pageRelations = groupRelationRepository.findForGroups(groupIds);
+        Map<Long, List<GroupRelation>> relationsByGroup = new HashMap<>();
+        for (GroupRelation relation : pageRelations) {
+            relationsByGroup.computeIfAbsent(relation.getGroupA().getGroupId(), ignored -> new ArrayList<>()).add(relation);
+            relationsByGroup.computeIfAbsent(relation.getGroupB().getGroupId(), ignored -> new ArrayList<>()).add(relation);
+        }
+
+        return ResponseEntity.ok(groups.map(group -> toDetailsDto(
+                group,
+                viewer,
+                mappingsByGroup.getOrDefault(group.getGroupId(), List.of()),
+                relationsByGroup.getOrDefault(group.getGroupId(), List.of()))));
     }
 
     @GetMapping("/categories")
@@ -130,10 +110,17 @@ public class CodeController {
     }
 
     private NationalCodeDetailsDto toDetailsDto(MaterialGroup group, UserPrincipal viewer) {
+        return toDetailsDto(group, viewer,
+                mappingRepository.findByGroup_GroupId(group.getGroupId()),
+                groupRelationRepository.findByGroupA_GroupIdOrGroupB_GroupId(group.getGroupId(), group.getGroupId()));
+    }
+
+    private NationalCodeDetailsDto toDetailsDto(MaterialGroup group, UserPrincipal viewer,
+                                                 List<MaterialMapping> mappings,
+                                                 List<GroupRelation> relations) {
         NationalCodeDetailsDto dto = new NationalCodeDetailsDto();
         dto.setCommonMaterialCode(group.getCommonMaterialCode());
         dto.setProvisionalRef(group.getProvisionalRef());
-        dto.setStatus(group.getStatus());
         dto.setStandardizedDescription(group.getStandardizedDescription());
         dto.setStandardizedSpecification(group.getStandardizedSpecification());
         dto.setStandardizedUom(group.getStandardizedUom());
@@ -167,7 +154,6 @@ public class CodeController {
         }
 
         // Member materials
-        List<MaterialMapping> mappings = mappingRepository.findByGroup_GroupId(group.getGroupId());
         Set<String> distinctCpses = new HashSet<>();
         List<NationalCodeDetailsDto.MemberMaterialDto> members = new ArrayList<>();
 
@@ -196,13 +182,14 @@ public class CodeController {
 
         dto.setDistinctCpseCount(distinctCpses.size());
         dto.setMembers(members);
+        dto.setStatus(members.stream().anyMatch(member -> "CONFIRMED".equals(member.getMappingStatus()))
+                ? "HARMONIZED" : "PENDING_REVIEW");
 
         // Group relations (equivalents & variants)
-        List<GroupRelation> relations = groupRelationRepository.findByGroupA_GroupIdOrGroupB_GroupId(group.getGroupId(), group.getGroupId());
         List<NationalCodeDetailsDto.RelatedGroupDto> relatedList = new ArrayList<>();
         for (GroupRelation gr : relations) {
             MaterialGroup other = gr.getGroupA().getGroupId().equals(group.getGroupId()) ? gr.getGroupB() : gr.getGroupA();
-            if (!"ACTIVE".equals(other.getStatus())) continue;
+            if (!"ACTIVE".equals(other.getStatus()) && !"PROPOSED".equals(other.getStatus())) continue;
             NationalCodeDetailsDto.RelatedGroupDto rDto = new NationalCodeDetailsDto.RelatedGroupDto();
             rDto.setGroupId(other.getGroupId());
             rDto.setCommonMaterialCode(other.getCommonMaterialCode());

@@ -1,5 +1,5 @@
 param(
-    [string]$FrontendUrl = "https://numm-frontend.onrender.com",
+    [string]$FrontendUrl = "https://numm-frontend-2r6s.onrender.com",
     [string]$BackendUrl = "https://numm-spring-api.onrender.com",
     [string]$MatchingUrl = "https://numm-matching.onrender.com",
     [string]$Email = "admin@numm.gov.in",
@@ -48,7 +48,7 @@ Invoke-Check "Dashboard" {
     Invoke-RestMethod -Uri "$BackendUrl/api/dashboard/stats" -Headers $headers -TimeoutSec 60
 } | Out-Null
 Invoke-Check "Catalog" {
-    Invoke-RestMethod -Uri "$BackendUrl/api/codes/search?q=&status=ACTIVE&page=0&size=5" -Headers $headers -TimeoutSec 60
+    Invoke-RestMethod -Uri "$BackendUrl/api/catalog/search?q=&status=ALL&page=0&size=5" -Headers $headers -TimeoutSec 60
 } | Out-Null
 Invoke-Check "AI comparison" {
     $payload = @{

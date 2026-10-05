@@ -102,9 +102,9 @@ services:
       - key: JWT_EXPIRATION_MS
         value: 28800000
       - key: CORS_ALLOWED_ORIGINS
-        value: https://numm-frontend.onrender.com
+        value: https://numm-frontend-2r6s.onrender.com
       - key: CORS_ALLOWED_ORIGINS_V2
-        value: https://numm-frontend.onrender.com
+        value: https://numm-frontend-2r6s.onrender.com
       - key: BOOTSTRAP_ADMIN_EMAIL
         value: admin@numm.gov.in
       - key: BOOTSTRAP_ADMIN_PASSWORD

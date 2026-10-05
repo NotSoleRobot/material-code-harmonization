@@ -13,7 +13,7 @@ const configuredApiOrigin = (
   || import.meta.env.VITE_API_BASE_URL
 )?.trim().replace(/\/+$/, "");
 const isHostedRenderFrontend = typeof window !== "undefined"
-  && window.location.hostname === "numm-frontend.onrender.com";
+  && window.location.hostname === "numm-frontend-2r6s.onrender.com";
 const hostedApiOrigin = LEGACY_RENDER_ORIGINS.has(configuredApiOrigin)
   || (!configuredApiOrigin && isHostedRenderFrontend)
   ? SPRING_RENDER_ORIGIN
@@ -145,36 +145,13 @@ export const api = {
     return request(`${API_BASE}/dashboard/stats`);
   },
 
-  async getRateContractCandidates() {
-    return request(`${API_BASE}/analytics/rate-contract-candidates`);
-  },
-
-  async getPriceVariance() {
-    return request(`${API_BASE}/analytics/price-variance`);
-  },
-
-  async getAssumptions() {
-    return request(`${API_BASE}/analytics/assumptions`);
-  },
-
-  async updateAssumption(key, data) {
-    return request(`${API_BASE}/analytics/assumptions/${key}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  },
-
-  // --- Codes and national catalog ---
+  // --- Unified material catalog ---
   async getCodeDetails(code) {
-    return request(`${API_BASE}/codes/${encodeURIComponent(code)}`);
+    return request(`${API_BASE}/catalog/${encodeURIComponent(code)}`);
   },
 
-  async validateCode(code) {
-    return request(`${API_BASE}/codes/${encodeURIComponent(code)}/validate`);
-  },
-
-  async searchCodes(query = "", status = "ACTIVE", category = "ALL", page = 0, size = 20) {
-    let url = `${API_BASE}/codes/search?q=${encodeURIComponent(query)}&page=${page}&size=${size}`;
+  async searchCodes(query = "", status = "ALL", category = "ALL", page = 0, size = 20) {
+    let url = `${API_BASE}/catalog/search?q=${encodeURIComponent(query)}&page=${page}&size=${size}`;
     if (status) {
       url += `&status=${encodeURIComponent(status)}`;
     }
@@ -197,7 +174,7 @@ export const api = {
   },
 
   async getCatalogCategories() {
-    return request(`${API_BASE}/codes/categories`);
+    return request(`${API_BASE}/catalog/categories`);
   },
 
   // --- Review queue and governance ---
@@ -225,13 +202,6 @@ export const api = {
     return request(`${API_BASE}/mappings/${mappingId}/approve`, {
       method: "POST",
       body: JSON.stringify({ notes }),
-    });
-  },
-
-  async approveAndPublish(mappingId) {
-    return request(`${API_BASE}/mappings/${mappingId}/approve-and-publish`, {
-      method: "POST",
-      timeoutMs: 120000,
     });
   },
 
@@ -263,17 +233,6 @@ export const api = {
     });
   },
 
-  // --- Publication and code minting ---
-  async getPublishableGroups() {
-    return request(`${API_BASE}/groups/publishable`);
-  },
-
-  async publishGroup(groupId) {
-    return request(`${API_BASE}/groups/${groupId}/mint`, {
-      method: "POST",
-    });
-  },
-
   // --- Materials and ingestion ---
   async getMaterials() {
     return request(`${API_BASE}/materials`);
@@ -285,13 +244,6 @@ export const api = {
 
   async createMaterial(payload) {
     return request(`${API_BASE}/materials`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  },
-
-  async requestNewCode(payload) {
-    return request(`${API_BASE}/materials/request-code`, {
       method: "POST",
       body: JSON.stringify(payload),
     });

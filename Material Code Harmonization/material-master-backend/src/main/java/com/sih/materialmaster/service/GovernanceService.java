@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sih.materialmaster.entity.*;
 import com.sih.materialmaster.repository.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,15 +13,13 @@ import java.util.*;
 
 /**
  * Human review and approval/rejection of AI-suggested mappings.
- * A single Reviewer can confirm and immediately publish (auto-mint) a group.
+ * Senior reviewers and administrators confirm or reject suggested mappings.
  */
 @Service
 public class GovernanceService {
 
-    private static final Logger log = LoggerFactory.getLogger(GovernanceService.class);
     private final MaterialMappingRepository mappingRepository;
     private final MaterialGroupRepository groupRepository;
-    private final NationalCodeGenerator codeGenerator;
     private final AuditService auditService;
     private final ReviewerAssignmentRepository reviewerAssignmentRepository;
     private final MatchingFeedbackRepository matchingFeedbackRepository;
@@ -31,13 +27,11 @@ public class GovernanceService {
 
     public GovernanceService(MaterialMappingRepository mappingRepository,
                              MaterialGroupRepository groupRepository,
-                             NationalCodeGenerator codeGenerator,
                              AuditService auditService,
                              ReviewerAssignmentRepository reviewerAssignmentRepository,
                              MatchingFeedbackRepository matchingFeedbackRepository) {
         this.mappingRepository = mappingRepository;
         this.groupRepository = groupRepository;
-        this.codeGenerator = codeGenerator;
         this.auditService = auditService;
         this.reviewerAssignmentRepository = reviewerAssignmentRepository;
         this.matchingFeedbackRepository = matchingFeedbackRepository;
@@ -104,16 +98,7 @@ public class GovernanceService {
 
         MaterialGroup group = savedMapping.getGroup();
         if (group != null) {
-            if ("CONFIRMED".equals(targetStatus)) {
-                // Auto-publish: mint the group immediately when at least one mapping is confirmed.
-                if ("PROPOSED".equals(group.getStatus())) {
-                    try {
-                        mintGroup(group.getGroupId(), actor);
-                    } catch (Exception mintEx) {
-                        log.warn("Auto-mint for group {} failed after confirmation, group left PROPOSED: {}", group.getGroupId(), mintEx.getMessage());
-                    }
-                }
-            } else if ("REJECTED".equals(targetStatus)) {
+            if ("REJECTED".equals(targetStatus)) {
                 // Check if any confirmed/pending mapping remains for this group
                 long confirmedCount = mappingRepository.countByGroup_GroupIdAndStatus(group.getGroupId(), "CONFIRMED");
                 long pendingCount = mappingRepository.countByGroup_GroupIdAndStatus(group.getGroupId(), "PENDING");
@@ -149,7 +134,7 @@ public class GovernanceService {
         }
         MaterialGroup group = mapping.getGroup();
         if (group != null && !"PROPOSED".equals(group.getStatus())) {
-            throw new IllegalStateException("Published groups cannot be edited through a mapping");
+            throw new IllegalStateException("Only proposed catalog groups can be edited through a mapping");
         }
         if (group != null) {
             String oldDesc = group.getStandardizedDescription();
@@ -183,7 +168,7 @@ public class GovernanceService {
      */
     @Transactional
     public BulkApprovalResult bulkApproveHighConfidence(User reviewer, Long categoryId) {
-        if ("REVIEWER".equals(reviewer.getRole()) && categoryId != null && !reviewerAssignmentRepository.findCategoryIdsByUserId(reviewer.getUserId()).contains(categoryId)) {
+        if ("SENIOR_REVIEWER".equals(reviewer.getRole()) && categoryId != null && !reviewerAssignmentRepository.findCategoryIdsByUserId(reviewer.getUserId()).contains(categoryId)) {
             throw new AccessDeniedException("Category is not assigned to you");
         }
         List<MaterialMapping> candidates;
@@ -192,7 +177,7 @@ public class GovernanceService {
         } else {
             List<Long> assignedCats = reviewerAssignmentRepository.findCategoryIdsByUserId(reviewer.getUserId());
             if (assignedCats.isEmpty()) {
-                candidates = "REVIEWER".equals(reviewer.getRole()) ? List.of() : mappingRepository.findHighConfidencePendingAll();
+                candidates = mappingRepository.findHighConfidencePendingAll();
             } else {
                 candidates = mappingRepository.findHighConfidencePendingForCategories(assignedCats);
             }
@@ -232,26 +217,6 @@ public class GovernanceService {
     public record BulkApprovalResult(int eligibleCount, int approvedCount, int skippedCount,
                                      List<BulkApprovalFailure> skipped) {}
 
-    /** Single command for the eligible high-confidence fast-track path. */
-    @Transactional
-    public String approveAndPublish(Long mappingId, User actor) {
-        MaterialMapping mapping = mappingRepository.findById(mappingId)
-                .orElseThrow(() -> new IllegalArgumentException("Mapping not found: " + mappingId));
-        if (mapping.getConfidenceScore() == null || mapping.getConfidenceScore().doubleValue() < 0.85
-                || !"HIGH".equalsIgnoreCase(mapping.getConfidenceTier())) {
-            throw new IllegalStateException("Fast-track requires a HIGH confidence score of at least 85%");
-        }
-        if (hasIdentityCriticalConflicts(mapping.getExplanationJson())) {
-            throw new IllegalStateException("Fast-track is unavailable because identity-critical conflicts require review");
-        }
-        if ("PENDING".equalsIgnoreCase(mapping.getStatus())) {
-            mapping = decideMapping(mappingId, actor, "CONFIRMED", "High-confidence fast-track approval");
-        } else if (!"CONFIRMED".equalsIgnoreCase(mapping.getStatus())) {
-            throw new IllegalStateException("Only PENDING or CONFIRMED mappings can be fast-tracked");
-        }
-        return mintGroup(mapping.getGroup().getGroupId(), actor);
-    }
-
     private boolean hasIdentityCriticalConflicts(String explanationJson) {
         if (explanationJson == null || explanationJson.isBlank()) return false;
         try {
@@ -270,67 +235,13 @@ public class GovernanceService {
     }
 
     public void checkAssignment(MaterialMapping mapping, User user) {
-        if ("REVIEWER".equals(user.getRole()) && (mapping.getGroup() == null || mapping.getGroup().getCategory() == null ||
-                !reviewerAssignmentRepository.findCategoryIdsByUserId(user.getUserId()).contains(mapping.getGroup().getCategory().getCategoryId()))) {
-            throw new AccessDeniedException("Mapping is outside your assigned categories");
+        if ("SENIOR_REVIEWER".equals(user.getRole())) {
+            List<Long> assigned = reviewerAssignmentRepository.findCategoryIdsByUserId(user.getUserId());
+            if (!assigned.isEmpty() && (mapping.getGroup() == null || mapping.getGroup().getCategory() == null
+                    || !assigned.contains(mapping.getGroup().getCategory().getCategoryId()))) {
+                throw new AccessDeniedException("Mapping is outside your assigned categories");
+            }
         }
-    }
-
-    /**
-     * Publication & National Code Minting.
-     * Any reviewer or admin may mint a group that has at least one CONFIRMED mapping.
-     */
-    @Transactional
-    public String mintGroup(Long id, User approver) {
-        if (!"REVIEWER".equalsIgnoreCase(approver.getRole())
-                && !"SENIOR_REVIEWER".equalsIgnoreCase(approver.getRole())
-                && !"ADMIN".equalsIgnoreCase(approver.getRole())) {
-            throw new AccessDeniedException("Reviewer approval required to mint national material codes");
-        }
-
-        MaterialGroup group = groupRepository.findLockedById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Material group not found: " + id));
-
-        if (!"PROPOSED".equals(group.getStatus())) {
-            throw new IllegalStateException("Only PROPOSED groups can be minted (current status: " + group.getStatus() + ")");
-        }
-
-        List<MaterialMapping> confirmed = mappingRepository.findByGroup_GroupId(id).stream()
-                .filter(m -> "CONFIRMED".equals(m.getStatus()))
-                .toList();
-
-        if (confirmed.isEmpty()) {
-            throw new IllegalStateException("At least one CONFIRMED mapping is required before publishing a group");
-        }
-
-        // Remove 4-eyes self-review block so a single reviewer can confirm and publish.
-
-        // Mint authoritative Semi-Significant National Material Code with ISO 7064 MOD 37,36 checksum
-        Map<String, Object> attrs = new HashMap<>();
-        if (group.getSignatureAttributes() != null) {
-            try {
-                attrs = objectMapper.readValue(group.getSignatureAttributes(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
-            } catch (Exception ignored) {}
-        }
-        if (group.getCodeSerial() == null) {
-            String parsed = codeGenerator.extractSerialFromProvisional(group.getProvisionalRef());
-            group.setCodeSerial(parsed != null ? Long.parseLong(parsed) : codeGenerator.allocateSerial(group.getCategory()));
-            group.setProvisionalRef(codeGenerator.generateProvisionalRef(group.getCategory(), group.getCodeSerial()));
-        }
-        String code = codeGenerator.mintNationalCode(group.getCategory(), attrs, group.getProvisionalRef());
-        group.setCommonMaterialCode(code);
-        group.setStatus("ACTIVE");
-        groupRepository.save(group);
-
-        auditService.logEvent(approver, "CODE_MINTED", "MATERIAL_GROUP", id, "PROPOSED", code);
-        return code;
-    }
-
-    /**
-     * WP4 Task 4: Retrieve groups in PROPOSED status with >= 1 CONFIRMED mapping for publication.
-     */
-    public List<MaterialGroup> getPublishableGroups() {
-        return groupRepository.findPublishableGroups();
     }
 
     /**

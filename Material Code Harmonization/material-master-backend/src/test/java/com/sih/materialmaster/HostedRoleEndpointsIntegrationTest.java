@@ -43,7 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         "spring.jpa.open-in-view=false",
         "spring.datasource.url=jdbc:h2:mem:hosted_role_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=KEY,VALUE",
-        "app.cors.allowed-origins=https://numm-frontend.onrender.com"
+        "app.cors.allowed-origins=https://numm-frontend-2r6s.onrender.com"
 })
 @AutoConfigureMockMvc
 @ActiveProfiles("demo")
@@ -81,7 +81,6 @@ class HostedRoleEndpointsIntegrationTest {
 
         User admin = saveUser("System Administrator", "admin@numm.gov.in", "admin123", "ADMIN", null);
         saveUser("Senior Reviewer", "senior.reviewer@numm.gov.in", "reviewer123", "SENIOR_REVIEWER", null);
-        saveUser("Mechanical Reviewer", "reviewer.mech@numm.gov.in", "reviewer123", "REVIEWER", ongc);
         saveUser("ONGC Operator", "operator@ongc.co.in", "operator123", "OPERATOR", ongc);
 
         Material material = new Material();
@@ -130,11 +129,11 @@ class HostedRoleEndpointsIntegrationTest {
     @Test
     void roleScreensResolveLazyRelationshipsAfterRepositoryTransactionsClose() throws Exception {
         mvc.perform(options("/api/auth/login")
-                        .header("Origin", "https://numm-frontend.onrender.com")
+                        .header("Origin", "https://numm-frontend-2r6s.onrender.com")
                         .header("Access-Control-Request-Method", "POST")
                         .header("Access-Control-Request-Headers", "content-type"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Access-Control-Allow-Origin", "https://numm-frontend.onrender.com"));
+                .andExpect(header().string("Access-Control-Allow-Origin", "https://numm-frontend-2r6s.onrender.com"));
 
         mvc.perform(get("/api/auth/demo-accounts"))
                 .andExpect(status().isOk())
@@ -145,8 +144,6 @@ class HostedRoleEndpointsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].cpseName").value("ONGC"))
                 .andExpect(jsonPath("$[0].nominalPrice").value(1250.00));
-
-        login("reviewer.mech@numm.gov.in", "reviewer123");
 
         String adminToken = login("admin@numm.gov.in", "admin123");
         mvc.perform(get("/api/admin/users").header("Authorization", bearer(adminToken)))

@@ -34,5 +34,7 @@ Thumbs.db
 
 # Presentation build artifacts and scratch output
 .chart-data-*/
+.codex-*/
 .presentation-build/
 output/
+Material Code Harmonization/docs/PPT_CONTEXT.md

@@ -217,20 +217,6 @@ public class MaterialController {
         }
     }
 
-    /**
-     * Operator search loop: Request new national code when lookup finds no existing match (W4.2).
-     */
-    @PostMapping("/request-code")
-    @Transactional
-    public ResponseEntity<HarmonizationResultDto> requestNewNationalCode(
-            @Valid @RequestBody MaterialCreateRequest request,
-            @AuthenticationPrincipal UserPrincipal currentUser) {
-
-        ResponseEntity<MaterialResponse> created = createMaterial(request, currentUser);
-        HarmonizationResultDto result = harmonizationService.harmonizeMaterial(created.getBody().getMaterialId());
-        return ResponseEntity.ok(result);
-    }
-
     private MaterialResponse toResponse(Material material) {
         return new MaterialResponse(
                 material.getMaterialId(),

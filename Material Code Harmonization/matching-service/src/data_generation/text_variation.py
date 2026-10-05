@@ -3,7 +3,7 @@ Turns a canonical material's structured attributes into realistic, varied CPSE-s
 free-text descriptions -- the thing the ML system has to reverse-engineer.
 
 Design choices (each tied to a listed failure mode from the strategy doc):
-  - multiple "styles" (terse/verbose/legacy/procurement)  -> description-length variation
+  - multiple "styles" (terse/verbose/legacy/operations) -> description-length variation
   - abbreviation vs spelled-out                            -> abbreviation variation
   - mm vs inch rendering                                   -> unit variation
   - token reordering                                       -> attribute-order variation
@@ -47,7 +47,7 @@ FASTENER_TYPE_LONGFORM = {"HEX BOLT": "Hexagonal Head Bolt", "HEX NUT": "Hexagon
 FILTER_TYPE_LONGFORM = {"OIL FILTER": "Oil Filter", "AIR FILTER": "Air Filter",
                          "FUEL FILTER": "Fuel Filter", "STRAINER": "Y-Type Strainer"}
 
-STYLES = ["TERSE", "VERBOSE", "LEGACY", "PROCUREMENT"]
+STYLES = ["TERSE", "VERBOSE", "LEGACY", "OPERATIONS"]
 
 
 def mm_to_inch_str(mm: float) -> str:
@@ -152,7 +152,7 @@ class TextVariationEngine:
             desc = f"{mat_long} Pipe, {size} Nominal Diameter, {sch}, Seamless".strip()
         elif style == "LEGACY":
             desc = f"{mat}. PIPE {size} DIA {sch} TYPE".strip()
-        else:  # PROCUREMENT
+        else:  # OPERATIONS
             desc = f"Pipe - {mat_long}, Size: {size}, Schedule: {sch}".strip()
         spec = f"{std} {grade}".strip()
         return desc, spec

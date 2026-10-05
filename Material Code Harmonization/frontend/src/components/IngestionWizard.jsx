@@ -17,7 +17,6 @@ const CANONICAL_FIELDS = [
   { key: "specification", label: "Specification / Standard", required: false, desc: "Standard designation (e.g. ASTM A106, IS 1239, API 600)" },
   { key: "unit_of_measure", label: "Unit of Measure", required: false, desc: "Stock keeping unit (e.g., MTR, NOS, KG, SET)" },
   { key: "category", label: "Material Category", required: true, desc: "Primary commodity category (e.g., PIPE, VALVE, BEARING)" },
-  { key: "nominal_price", label: "Nominal Price (INR)", required: false, desc: "Purchase order unit rate or estimated cost for price-variance analytics" },
   { key: "cpse_name", label: "CPSE / Enterprise Name", required: false, desc: "Auto-injected from active enterprise session if omitted in file" },
 ];
 
@@ -40,7 +39,6 @@ const HEADER_ALIASES = {
   specification: ["spec", "specification", "standard", "grade", "astm", "is_standard", "material_grade"],
   unit_of_measure: ["uom", "unit", "base_uom", "measure_unit", "unit_of_measure", "units", "meins"],
   category: ["category", "commodity", "group", "class", "category_name", "material_group", "type", "matkl"],
-  nominal_price: ["price", "nominal_price", "unit_price", "rate", "cost", "unit_rate", "amount", "po_rate", "netpr"],
   cpse_name: ["cpse", "plant", "company", "enterprise", "org", "organisation", "organization", "location", "unit", "werks"],
 };
 
@@ -742,12 +740,13 @@ export function IngestionWizard() {
                         Ingestion & Harmonization Complete
                       </span>
                       <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                        Records successfully ingested and harmonized into the national master catalog. All proposed mappings remain pending until reviewer approval.
+                        New records were queued for harmonization; repeat records were detected and left unchanged.
                       </span>
                     </div>
                   </div>
 
-                  {(jobResult?.skippedItems ?? uploadResult?.skippedCount ?? 0) > 0 && (
+                  {((jobResult?.skippedItems ?? uploadResult?.skippedCount ?? 0) > 0 ||
+                    (jobResult?.alreadyHarmonized ?? 0) > 0) && (
                     <div
                       role="status"
                       style={{
@@ -764,10 +763,10 @@ export function IngestionWizard() {
                       <AlertCircle size={18} style={{ flexShrink: 0, marginTop: "2px" }} />
                       <div>
                         <div style={{ fontWeight: 700, marginBottom: "0.35rem" }}>
-                          {jobResult?.importedItems ?? uploadResult?.importedCount ?? 0} rows imported; {jobResult?.skippedItems ?? uploadResult?.skippedCount ?? 0} incomplete rows skipped
+                          {jobResult?.importedItems ?? uploadResult?.importedCount ?? 0} new; {jobResult?.alreadyHarmonized ?? 0} already harmonized or queued; {jobResult?.skippedItems ?? uploadResult?.skippedCount ?? 0} incomplete
                         </div>
                         <div style={{ fontSize: "0.78rem", marginBottom: "0.35rem" }}>
-                          Open-domain categories are accepted under GENERAL_MRO; only structurally incomplete rows are skipped.
+                          Existing CPSE material codes with an active mapping are not processed again. Only new or previously unmapped records enter harmonization.
                         </div>
                         <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.76rem" }}>
                           {((jobDiagnostics && jobDiagnostics.length > 0 ? jobDiagnostics : uploadResult?.messages) || [])
@@ -781,24 +780,24 @@ export function IngestionWizard() {
                   {/* Result KPI Cards */}
                   <div className="ingest-result-grid" style={{ marginBottom: "1.5rem" }}>
                     <div className="ingest-result-card result-auto">
-                      <div className="result-count">{jobResult.importedItems ?? jobResult.processedItems ?? rows.length}</div>
-                      <div className="result-label">Total Processed Records</div>
-                      <div className="result-desc">Ingested into staging pool and indexed</div>
+                      <div className="result-count">{jobResult.importedItems ?? 0}</div>
+                      <div className="result-label">New Records</div>
+                      <div className="result-desc">Added to the material inventory</div>
                     </div>
                     <div className="ingest-result-card result-review">
-                      <div className="result-count">{jobResult.autoHarmonized ?? 0}</div>
-                      <div className="result-label">Strong Match Proposals</div>
-                      <div className="result-desc">Harmonized to existing candidate groups</div>
+                      <div className="result-count">{jobResult.alreadyHarmonized ?? 0}</div>
+                      <div className="result-label">Already Harmonized</div>
+                      <div className="result-desc">Duplicates safely left unchanged</div>
                     </div>
                     <div className="ingest-result-card result-review">
-                      <div className="result-count">{jobResult.pendingReview ?? 0}</div>
-                      <div className="result-label">Manual Comparison Required</div>
-                      <div className="result-desc">Medium-confidence proposals needing closer review</div>
+                      <div className="result-count">{jobResult.queuedForHarmonization ?? 0}</div>
+                      <div className="result-label">Sent to Harmonization</div>
+                      <div className="result-desc">Only records needing processing</div>
                     </div>
                     <div className="ingest-result-card result-novel">
-                      <div className="result-count">{jobResult.distinctMaterials ?? 0}</div>
-                      <div className="result-label">New Master Code Candidates</div>
-                      <div className="result-desc">Provisional candidate groups registered</div>
+                      <div className="result-count">{jobResult.pendingReview ?? 0}</div>
+                      <div className="result-label">Review Required</div>
+                      <div className="result-desc">Proposals awaiting a technical decision</div>
                     </div>
                   </div>
 

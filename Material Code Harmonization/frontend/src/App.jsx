@@ -19,7 +19,6 @@ const CatalogView = lazy(() => import("./components/CatalogView").then((m) => ({
 const CodeDetailView = lazy(() => import("./components/CodeDetailView").then((m) => ({ default: m.CodeDetailView })));
 const ReviewQueueView = lazy(() => import("./components/ReviewQueueView").then((m) => ({ default: m.ReviewQueueView })));
 const ReviewDetailView = lazy(() => import("./components/ReviewDetailView").then((m) => ({ default: m.ReviewDetailView })));
-const PublishView = lazy(() => import("./components/PublishView").then((m) => ({ default: m.PublishView })));
 const IngestionWizard = lazy(() => import("./components/IngestionWizard").then((m) => ({ default: m.IngestionWizard })));
 const HarmonizeView = lazy(() => import("./components/HarmonizeView").then((m) => ({ default: m.HarmonizeView })));
 const AuditTrailView = lazy(() => import("./components/AuditTrailView").then((m) => ({ default: m.AuditTrailView })));
@@ -30,7 +29,7 @@ import "./i18n";
 function AppLayout({ children }) {
   const { user } = useAuth();
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
-  const canReview = user && ["ADMIN", "REVIEWER", "SENIOR_REVIEWER"].includes(user.role);
+  const canReview = user && ["ADMIN", "SENIOR_REVIEWER"].includes(user.role);
 
   const { data: pendingMappings } = useQuery({
     queryKey: ["mappings", "PENDING"],
@@ -123,7 +122,7 @@ export function App() {
                         }
                       />
 
-                      {/* 4. Review & Adjudication Queue (REVIEWER, SENIOR_REVIEWER, ADMIN) */}
+                      {/* 4. Review & Adjudication Queue (SENIOR_REVIEWER, ADMIN) */}
                       <Route
                         path="/review"
                         element={
@@ -141,25 +140,15 @@ export function App() {
                         }
                       />
 
-                      {/* 5. Publication & Minting (SENIOR_REVIEWER) */}
-                      <Route
-                        path="/publish"
-                        element={
-                          <RequireRole roles={rolesFor("/publish")}>
-                            <PublishView />
-                          </RequireRole>
-                        }
-                      />
-
-                      {/* 6. Unified National Catalog (All authenticated roles) */}
+                      {/* 5. Unified Material Catalog (All authenticated roles) */}
                       <Route path="/catalog" element={<CatalogView />} />
-                      <Route path="/codes/:code" element={<CodeDetailView />} />
+                      <Route path="/catalog/:code" element={<CodeDetailView />} />
 
-                      {/* 7. Pairwise AI Comparison Sandbox (All authenticated roles) */}
+                      {/* 6. Pairwise AI Comparison Sandbox (All authenticated roles) */}
                       <Route path="/compare" element={<HarmonizeView />} />
                       <Route path="/harmonize" element={<Navigate to="/compare" replace />} />
 
-                      {/* 8. Cryptographic Audit Trail (SENIOR_REVIEWER, ADMIN) */}
+                      {/* 7. Cryptographic Audit Trail (SENIOR_REVIEWER, ADMIN) */}
                       <Route
                         path="/audit"
                         element={
@@ -169,7 +158,7 @@ export function App() {
                         }
                       />
 
-                      {/* 9. User Administration (ADMIN) */}
+                      {/* 8. User Administration (ADMIN) */}
                       <Route
                         path="/admin/users"
                         element={

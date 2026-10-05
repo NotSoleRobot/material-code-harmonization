@@ -108,14 +108,15 @@
 .skeleton-line { height: 12px; background: var(--line); border-radius: var(--radius); }
 .skeleton-grid { display: grid; gap: var(--space-3); }
 
-.login-page { min-height: 100vh; display: flex; flex-direction: column; background: var(--canvas); }
-.login-masthead { color: var(--ink); background: #F1F6F8; border-bottom: 1px solid #D5E0E5; }
+.login-page { min-height: 100vh; display: flex; flex-direction: column; background: linear-gradient(145deg, #F7FAFB 0%, #EDF4F6 100%); }
+.login-masthead { color: var(--ink); background: #EDF5F7; border-bottom: 1px solid #C8DCE2; }
 .login-masthead-inner { min-height: 68px; max-width: var(--content-width); margin: 0 auto; padding: 0 var(--space-6); display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
 .login-government-mark, .login-masthead-meta { color: var(--ink-muted); font-size: var(--text-xs); }
 .login-masthead-brand { display: flex; align-items: center; gap: var(--space-2); }
 .login-masthead-brand span { display: block; color: var(--ink-muted); font-size: var(--text-xs); }
 .login-main { flex: 1; display: grid; place-items: center; padding: var(--space-8) var(--space-4); }
-.login-panel { width: 100%; max-width: 460px; padding: var(--space-6); background: var(--surface); border: 1px solid var(--line); border-top: 3px solid #8EAFBF; border-radius: var(--radius); box-shadow: var(--shadow); }
+.login-logo { display: grid; place-items: center; width: 32px; height: 32px; color: #FFFFFF; background: #2F6F7E; border-radius: 8px; }
+.login-panel { width: 100%; max-width: 460px; padding: var(--space-6); background: var(--surface); border: 1px solid #CBDCE1; border-top: 3px solid #4F8794; border-radius: var(--radius); box-shadow: 0 12px 32px rgba(30, 67, 76, 0.09); }
 .login-panel-heading { display: flex; gap: var(--space-3); align-items: center; }
 .login-panel-kicker { color: var(--ink-muted); font-size: var(--text-xs); text-transform: uppercase; }
 .login-panel-sub { color: var(--ink-muted); }

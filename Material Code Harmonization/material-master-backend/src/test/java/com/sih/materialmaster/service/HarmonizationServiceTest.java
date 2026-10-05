@@ -43,7 +43,7 @@ class HarmonizationServiceTest {
     private MatchingClient matchingClient;
 
     @Mock
-    private NationalCodeGenerator codeGenerator;
+    private MaterialIdentityService identityService;
 
     @Mock
     private AuditService auditService;
@@ -89,8 +89,8 @@ class HarmonizationServiceTest {
     @Test
     @DisplayName("Harmonize material when Python ML service returns match candidates")
     void testHarmonizeMaterial_SuccessWithMatch() {
-        when(codeGenerator.computeAttributeSignature(any(), any(), any()))
-                .thenReturn(new NationalCodeGenerator.SignatureResult("sig_pipe_partial", false));
+        when(identityService.computeAttributeSignature(any(), any(), any()))
+                .thenReturn(new MaterialIdentityService.SignatureResult("sig_pipe_partial", false));
 
         when(materialRepository.findById(100L)).thenReturn(Optional.of(queryMaterial));
         when(materialRepository.findRelevantCandidates(anyLong(), anyLong(), anyString(), any(), any()))
@@ -110,11 +110,11 @@ class HarmonizationServiceTest {
         FindMatchesResponse findResponse = new FindMatchesResponse(List.of(candidateResult));
         when(matchingClient.findMatches(any(), anyList(), eq(5))).thenReturn(findResponse);
 
-        when(codeGenerator.generateProvisionalRef(any(), anyLong())).thenReturn("PROV-2026-000500");
+        when(identityService.generateCatalogReference(any(), anyLong())).thenReturn("CAT-401407-000500");
 
         MaterialGroup savedGroup = new MaterialGroup();
         savedGroup.setGroupId(500L);
-        savedGroup.setProvisionalRef("PROV-2026-000500");
+        savedGroup.setProvisionalRef("CAT-401407-000500");
         when(groupRepository.save(any(MaterialGroup.class))).thenReturn(savedGroup);
 
         MaterialMapping savedMapping = new MaterialMapping();
@@ -128,7 +128,7 @@ class HarmonizationServiceTest {
         assertNotNull(result);
         assertEquals("AUTO_HARMONIZED", result.getStatus());
         assertEquals("AUTO_CONFIRM", result.getRoutingDecision());
-        assertEquals("PROV-2026-000500", result.getProposedGroupCode());
+        assertEquals("CAT-401407-000500", result.getProposedGroupCode());
         assertEquals(0.92, result.getConfidenceScore());
         assertEquals("HIGH", result.getConfidenceTier());
     }
@@ -136,18 +136,18 @@ class HarmonizationServiceTest {
     @Test
     @DisplayName("Harmonize material when no candidates exist creates provisional novel group")
     void testHarmonizeMaterial_NoCandidates() {
-        when(codeGenerator.computeAttributeSignature(any(), any(), any()))
-                .thenReturn(new NationalCodeGenerator.SignatureResult("sig_pipe_novel", false));
+        when(identityService.computeAttributeSignature(any(), any(), any()))
+                .thenReturn(new MaterialIdentityService.SignatureResult("sig_pipe_novel", false));
 
         when(materialRepository.findById(100L)).thenReturn(Optional.of(queryMaterial));
         when(materialRepository.findRelevantCandidates(anyLong(), anyLong(), anyString(), any(), any()))
                 .thenReturn(Collections.emptyList());
 
-        when(codeGenerator.generateProvisionalRef(any(), anyLong())).thenReturn("PROV-2026-000501");
+        when(identityService.generateCatalogReference(any(), anyLong())).thenReturn("CAT-401407-000501");
 
         MaterialGroup savedGroup = new MaterialGroup();
         savedGroup.setGroupId(501L);
-        savedGroup.setProvisionalRef("PROV-2026-000501");
+        savedGroup.setProvisionalRef("CAT-401407-000501");
         when(groupRepository.save(any(MaterialGroup.class))).thenReturn(savedGroup);
 
         MaterialMapping savedMapping = new MaterialMapping();
@@ -166,8 +166,8 @@ class HarmonizationServiceTest {
     @Test
     @DisplayName("Explicit model uncertainty is routed to review even at a low score")
     void testHarmonizeMaterial_NeedsReviewNeverBecomesNovel() {
-        when(codeGenerator.computeAttributeSignature(any(), any(), any()))
-                .thenReturn(new NationalCodeGenerator.SignatureResult("sig_uncertain", false));
+        when(identityService.computeAttributeSignature(any(), any(), any()))
+                .thenReturn(new MaterialIdentityService.SignatureResult("sig_uncertain", false));
         when(materialRepository.findById(100L)).thenReturn(Optional.of(queryMaterial));
         when(materialRepository.findRelevantCandidates(anyLong(), anyLong(), anyString(), any(), any()))
                 .thenReturn(List.of(candidateMaterial));
@@ -180,10 +180,10 @@ class HarmonizationServiceTest {
         when(matchingClient.findMatches(any(), anyList(), eq(5)))
                 .thenReturn(new FindMatchesResponse(List.of(uncertain)));
 
-        when(codeGenerator.generateProvisionalRef(any(), anyLong())).thenReturn("PROV-2026-000502");
+        when(identityService.generateCatalogReference(any(), anyLong())).thenReturn("CAT-401407-000502");
         MaterialGroup group = new MaterialGroup();
         group.setGroupId(502L);
-        group.setProvisionalRef("PROV-2026-000502");
+        group.setProvisionalRef("CAT-401407-000502");
         when(groupRepository.save(any(MaterialGroup.class))).thenReturn(group);
         when(mappingRepository.save(any(MaterialMapping.class))).thenAnswer(invocation -> {
             MaterialMapping mapping = invocation.getArgument(0);
@@ -221,12 +221,12 @@ class HarmonizationServiceTest {
     @DisplayName("Step 1 (D1): Deterministic match joins existing group on identical complete signature")
     void testHarmonizeMaterial_DeterministicSignatureMatch() {
         when(materialRepository.findById(100L)).thenReturn(Optional.of(queryMaterial));
-        when(codeGenerator.computeAttributeSignature(any(), any(), any()))
-                .thenReturn(new NationalCodeGenerator.SignatureResult("sig_exact_hash_123", true));
+        when(identityService.computeAttributeSignature(any(), any(), any()))
+                .thenReturn(new MaterialIdentityService.SignatureResult("sig_exact_hash_123", true));
 
         MaterialGroup existingGroup = new MaterialGroup();
         existingGroup.setGroupId(777L);
-        existingGroup.setCommonMaterialCode("NUMM-401416-CS-050-S40-000777-X");
+        existingGroup.setProvisionalRef("CAT-401407-000777");
         existingGroup.setAttributeSignature("sig_exact_hash_123");
 
         when(groupRepository.findByAttributeSignature("sig_exact_hash_123")).thenReturn(Optional.of(existingGroup));
@@ -245,7 +245,7 @@ class HarmonizationServiceTest {
         assertEquals(1.0, result.getConfidenceScore());
         assertEquals("HIGH", result.getConfidenceTier());
         assertEquals("AUTO_CONFIRM", result.getRoutingDecision());
-        assertEquals("NUMM-401416-CS-050-S40-000777-X", result.getProposedGroupCode());
+        assertEquals("CAT-401407-000777", result.getProposedGroupCode());
     }
 
     @Test

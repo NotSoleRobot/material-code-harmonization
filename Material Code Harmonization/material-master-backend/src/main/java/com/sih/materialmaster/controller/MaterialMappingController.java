@@ -72,13 +72,13 @@ public class MaterialMappingController {
 
         PageRequest pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Page<MaterialMapping> mappings;
-        if ("REVIEWER".equals(currentUser.getRole()) && categoryId != null &&
+        if ("SENIOR_REVIEWER".equals(currentUser.getRole()) && categoryId != null &&
                 !reviewerAssignmentRepository.findCategoryIdsByUserId(currentUser.getUserId()).contains(categoryId)) {
             throw new org.springframework.security.access.AccessDeniedException("Category is not assigned to you");
         }
         if (categoryId != null) {
             mappings = mappingRepository.findByStatusAndCategories(status.toUpperCase(), List.of(categoryId), pageable);
-        } else if (currentUser != null && "REVIEWER".equalsIgnoreCase(currentUser.getRole())) {
+        } else if (currentUser != null && "SENIOR_REVIEWER".equalsIgnoreCase(currentUser.getRole())) {
             List<Long> assignedCats = reviewerAssignmentRepository.findCategoryIdsByUserId(currentUser.getUserId());
             if (!assignedCats.isEmpty()) {
                 mappings = mappingRepository.findByStatusAndCategories(status.toUpperCase(), assignedCats, pageable);
@@ -108,7 +108,7 @@ public class MaterialMappingController {
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('REVIEWER', 'SENIOR_REVIEWER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SENIOR_REVIEWER', 'ADMIN')")
     @Transactional
     public ResponseEntity<MappingReviewResponse> approve(
             @PathVariable Long id,
@@ -124,7 +124,7 @@ public class MaterialMappingController {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('REVIEWER', 'SENIOR_REVIEWER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SENIOR_REVIEWER', 'ADMIN')")
     @Transactional
     public ResponseEntity<MappingReviewResponse> reject(
             @PathVariable Long id,
@@ -143,7 +143,7 @@ public class MaterialMappingController {
      * Edit mapping and group standardized attributes before confirming (BUG-12).
      */
     @PostMapping("/{id}/edit")
-    @PreAuthorize("hasAnyRole('REVIEWER', 'SENIOR_REVIEWER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SENIOR_REVIEWER', 'ADMIN')")
     @Transactional
     public ResponseEntity<MappingReviewResponse> edit(
             @PathVariable Long id,
@@ -167,7 +167,7 @@ public class MaterialMappingController {
      * Bulk approve all HIGH-confidence pending mappings in assigned class (Innovation #2 / W4.6).
      */
     @PostMapping("/bulk-approve")
-    @PreAuthorize("hasAnyRole('REVIEWER', 'SENIOR_REVIEWER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SENIOR_REVIEWER', 'ADMIN')")
     public ResponseEntity<?> bulkApproveHighConfidence(
             @RequestParam(required = false) Long categoryId,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -177,18 +177,6 @@ public class MaterialMappingController {
 
         GovernanceService.BulkApprovalResult result = governanceService.bulkApproveHighConfidence(reviewer, categoryId);
         return ResponseEntity.ok(result);
-    }
-
-    @PostMapping("/{id}/approve-and-publish")
-    @PreAuthorize("hasAnyRole('REVIEWER', 'SENIOR_REVIEWER', 'ADMIN')")
-    @Transactional
-    public ResponseEntity<Map<String, String>> approveAndPublish(
-            @PathVariable Long id, @AuthenticationPrincipal UserPrincipal currentUser) {
-        User actor = userRepository.findById(currentUser.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
-        String code = governanceService.approveAndPublish(id, actor);
-        return ResponseEntity.ok(Map.of("code", code, "status", "ACTIVE",
-                "message", "Mapping approved and national code published"));
     }
 
     /**

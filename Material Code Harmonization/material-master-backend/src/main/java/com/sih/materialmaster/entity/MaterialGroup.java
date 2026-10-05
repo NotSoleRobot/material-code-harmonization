@@ -37,14 +37,14 @@ public class MaterialGroup {
     @Column(name = "signature_version", nullable = false)
     private Integer signatureVersion = 1;
 
-    // Human-readable provisional reference (e.g. PROV-2026-000001) shown before reviewer approval
+    // Stable human-readable catalog reference used throughout review and search.
     @Column(name = "provisional_ref", unique = true, nullable = false, length = 50)
     private String provisionalRef;
 
     @Column(name = "code_serial")
     private Long codeSerial;
 
-    // Minted national code (NUMM-CCCCCC-MM-DDD-RRR-NNNNNN-K); null until governed publication.
+    // Legacy database column retained for migration compatibility; new records use provisionalRef.
     @Column(name = "common_material_code", unique = true, length = 50)
     private String commonMaterialCode;
 

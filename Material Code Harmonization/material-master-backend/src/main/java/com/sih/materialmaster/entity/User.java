@@ -30,11 +30,11 @@ public class User {
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
-    // OPERATOR | REVIEWER | SENIOR_REVIEWER | ADMIN
+    // OPERATOR | SENIOR_REVIEWER | ADMIN
     @Column(name = "role", nullable = false, length = 30)
     private String role;
 
-    // Nullable: required for OPERATOR, optional/prior CPSE for REVIEWER/SENIOR_REVIEWER, null for ADMIN
+    // Nullable: required for OPERATOR, optional for SENIOR_REVIEWER, null for ADMIN
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cpse_id")
     private Cpse cpse;
