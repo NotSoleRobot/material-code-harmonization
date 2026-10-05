@@ -10,22 +10,8 @@ import { ErrorPanel } from "./common/ErrorPanel";
 
 const PRESETS = [
   {
-    name: "Carbon Steel Pipes (ONGC vs IOCL)",
-    desc: "Identical DN50 pipes: ASTM A106 Gr.B vs IS 1239 equivalent standards",
-    matA: {
-      description: "CS SEAMLESS PIPE 50MM SCH40 ASTM A106 GRB",
-      category: "PIPE",
-      specification: "ASTM A106 GR.B",
-    },
-    matB: {
-      description: "CARBON STEEL PIPE DN50 SCHEDULE 40 GR.B IS1239",
-      category: "PIPE",
-      specification: "IS 1239",
-    },
-  },
-  {
     name: "Gate Valves (GAIL vs IOCL)",
-    desc: "Class 150 2-Inch RF flanged valve compatibility across API 600 & ASME standards",
+    desc: "Functionally equivalent Class 150 RF gate valves across API 600 and ASME references",
     matA: {
       description: "GATE VALVE CS CLASS150 2INCH RF API600",
       category: "VALVE",
@@ -38,8 +24,22 @@ const PRESETS = [
     },
   },
   {
-    name: "Ball Bearings (BHEL vs NTPC)",
-    desc: "Standard 6205 2RS deep groove ball bearing from SKF vs FAG equivalent",
+    name: "Pipe Standards Review (ONGC vs IOCL)",
+    desc: "Similar DN50 descriptions with differing ASTM and IS standards that require engineering review",
+    matA: {
+      description: "CS SEAMLESS PIPE 50MM SCH40 ASTM A106 GRB",
+      category: "PIPE",
+      specification: "ASTM A106 GR.B",
+    },
+    matB: {
+      description: "CARBON STEEL PIPE DN50 SCHEDULE 40 GR.B IS1239",
+      category: "PIPE",
+      specification: "IS 1239",
+    },
+  },
+  {
+    name: "Bearing Supplier Variant (BHEL vs NTPC)",
+    desc: "SKF and FAG 6205-series descriptions for checking supplier and dimensional compatibility",
     matA: {
       description: "DEEP GROOVE BALL BEARING 6205-2RS1 SKF",
       category: "BEARING",

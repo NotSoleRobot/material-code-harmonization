@@ -108,6 +108,10 @@ export const api = {
     const data = await request(`${API_BASE}/auth/login`, {
       method: "POST",
       body: JSON.stringify({ email, password }),
+      // The hosted Spring service may need to resume together with its
+      // free-tier database. Do not turn a legitimate cold start into a
+      // misleading authentication failure.
+      timeoutMs: 180000,
     });
     if (data && data.accessToken) {
       setAuthToken(data.accessToken);
@@ -121,7 +125,7 @@ export const api = {
 
   async getDemoAccounts() {
     try {
-      return await request(`${API_BASE}/auth/demo-accounts`);
+      return await request(`${API_BASE}/auth/demo-accounts`, { timeoutMs: 180000 });
     } catch (error) {
       if (error.status === 404) return [];
       throw error;

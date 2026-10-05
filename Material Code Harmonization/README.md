@@ -28,6 +28,18 @@ Wait for all four containers to become healthy (~60s), then open `http://localho
 | Mechanical reviewer | `reviewer.mech@numm.gov.in` | `reviewer123` |
 | ONGC operator | `operator@ongc.co.in` | `operator123` |
 
+## Submission-day preflight
+
+Run this 10–15 minutes before the demo to wake the free-tier services and verify
+the complete login, dashboard, catalog, and AI-comparison path:
+
+```powershell
+.\scripts\preflight_demo.ps1
+```
+
+Do not let the hosted services sit idle immediately before presenting. Render and
+the hosted database can take more than a minute to resume after inactivity.
+
 ## Local development
 
 ```powershell
