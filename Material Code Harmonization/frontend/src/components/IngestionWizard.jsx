@@ -803,17 +803,12 @@ export function IngestionWizard() {
                     <div className="ingest-result-card result-auto">
                       <div className="result-count">{jobResult.autoHarmonized ?? 0}</div>
                       <div className="result-label">Directly Harmonized</div>
-                      <div className="result-desc">Matched to an approved National Material Code</div>
+                      <div className="result-desc">Matched to an existing code or assigned a new NUMM code</div>
                     </div>
                     <div className="ingest-result-card result-novel">
                       <div className="result-count">{jobResult.pendingReview ?? 0}</div>
                       <div className="result-label">Review Required</div>
-                      <div className="result-desc">Uncertain matches awaiting Senior Reviewer</div>
-                    </div>
-                    <div className="ingest-result-card result-review">
-                      <div className="result-count">{jobResult.distinctMaterials ?? 0}</div>
-                      <div className="result-label">New Proposals</div>
-                      <div className="result-desc">Novel materials awaiting approval and code assignment</div>
+                      <div className="result-desc">Ambiguous matches or incomplete identities awaiting review</div>
                     </div>
                   </div>
 

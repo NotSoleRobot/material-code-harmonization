@@ -22,7 +22,8 @@ import java.util.regex.Matcher;
  * 1. Deterministic Attribute Signature Match (only when signature is complete)
  * 2. Policy-routed AI match (default auto-confirm >= 0.85 with a >= 0.10 candidate margin)
  * 3. Group Relation Classification (FUNCTIONALLY_EQUIVALENT / VARIANT)
- * 4. Novel Specification Registration (PROPOSED group with provisional reference)
+ * 4. Novel Specification Registration (complete identities receive a National Material Code;
+ *    incomplete identities are routed to review)
  */
 @Service
 public class HarmonizationService {
@@ -214,23 +215,31 @@ public class HarmonizationService {
         List<Material> candidateEntities = findCandidateEntities(target);
 
         if (candidateEntities.isEmpty()) {
-            // Novel specification: create proposed group for standalone item
+            // No comparison target exists. A complete novel identity can be catalogued directly;
+            // review is only needed when the identity data is incomplete.
             MaterialGroup group = createOrFindGroupForMaterial(target, targetAttrs, sigResult);
-            String explanation = "{\"checks\":[\"Initial novel specification item registered (no candidates)\"],\"warnings\":[],\"conflicts\":[]}";
+            boolean autoRegister = isAutoRegisterableNovel(target, sigResult);
+            RoutingEvidence routing = autoRegister ? RoutingEvidence.autoRegisteredNovel()
+                    : RoutingEvidence.incompleteNovelReview();
+            if (autoRegister) activateNationalRecord(group);
+            String explanation = autoRegister
+                    ? "{\"checks\":[\"No catalog candidates found\",\"Complete novel identity registered directly\"],\"warnings\":[],\"conflicts\":[]}"
+                    : "{\"checks\":[\"No catalog candidates found\"],\"warnings\":[\"Novel identity is incomplete and requires validation\"],\"conflicts\":[]}";
             MaterialMapping mapping = createOrUpdateMapping(target, group, 0.0, "LOW", explanation, "NOVEL",
-                    RoutingEvidence.novel());
+                    routing);
 
-            result.setStatus("NOVEL_SPECIFICATION_REGISTERED");
+            result.setStatus(autoRegister ? "NOVEL_AUTO_HARMONIZED" : "REVIEW_REQUIRED");
             result.setGroupId(group.getGroupId());
             result.setMappingId(mapping.getMappingId());
-            result.setProposedGroupCode(group.getProvisionalRef());
+            result.setProposedGroupCode(autoRegister ? group.getCommonMaterialCode() : group.getProvisionalRef());
             result.setConfidenceScore(0.0);
             result.setConfidenceTier("LOW");
-            result.setRoutingDecision("NOVEL");
+            result.setRoutingDecision(routing.decision());
             result.setMatches(Collections.emptyList());
 
             auditService.logEvent(null, "HARMONIZATION_RUN", "MATERIAL", target.getMaterialId(), null,
-                    "Novel specification registered: " + result.getProposedGroupCode());
+                    (autoRegister ? "Novel specification auto-registered: " : "Incomplete novel specification sent to review: ")
+                            + result.getProposedGroupCode());
             return result;
         }
 
@@ -256,17 +265,23 @@ public class HarmonizationService {
 
         if (matches == null || matches.isEmpty()) {
             MaterialGroup group = createOrFindGroupForMaterial(target, targetAttrs, sigResult);
-            String explanation = "{\"checks\":[\"No close AI matches found — novel item\"],\"warnings\":[],\"conflicts\":[]}";
+            boolean autoRegister = isAutoRegisterableNovel(target, sigResult);
+            RoutingEvidence routing = autoRegister ? RoutingEvidence.autoRegisteredNovel()
+                    : RoutingEvidence.incompleteNovelReview();
+            if (autoRegister) activateNationalRecord(group);
+            String explanation = autoRegister
+                    ? "{\"checks\":[\"No close AI matches found\",\"Complete novel identity registered directly\"],\"warnings\":[],\"conflicts\":[]}"
+                    : "{\"checks\":[\"No close AI matches found\"],\"warnings\":[\"Novel identity is incomplete and requires validation\"],\"conflicts\":[]}";
             MaterialMapping mapping = createOrUpdateMapping(target, group, 0.0, "LOW", explanation,
-                    "NOVEL_SPECIFICATION", RoutingEvidence.novel());
+                    "NOVEL_SPECIFICATION", routing);
 
-            result.setStatus("DISTINCT_MATERIAL_NO_MERGE");
+            result.setStatus(autoRegister ? "NOVEL_AUTO_HARMONIZED" : "REVIEW_REQUIRED");
             result.setGroupId(group.getGroupId());
             result.setMappingId(mapping.getMappingId());
-            result.setProposedGroupCode(group.getProvisionalRef());
+            result.setProposedGroupCode(autoRegister ? group.getCommonMaterialCode() : group.getProvisionalRef());
             result.setConfidenceScore(0.0);
             result.setConfidenceTier("LOW");
-            result.setRoutingDecision("NOVEL");
+            result.setRoutingDecision(routing.decision());
             return result;
         }
 
@@ -328,7 +343,8 @@ public class HarmonizationService {
         }
 
         RoutingEvidence routing = route(target, topMatch, rel, score, secondBestScore, margin,
-                criticalConflicts, isDuplicateMerge, approvedCandidate);
+                criticalConflicts, isDuplicateMerge, approvedCandidate,
+                isAutoRegisterableNovel(target, sigResult));
 
         if (targetGroup == null) {
             targetGroup = createOrFindGroupForMaterial(target, targetAttrs, sigResult);
@@ -340,6 +356,10 @@ public class HarmonizationService {
                     createOrUpdateMapping(matchedEntity, targetGroup, score, tier, explanationJson, matchBasis, routing);
                 }
             }
+        }
+
+        if ("AUTO_CONFIRM".equals(routing.decision()) && "NOVEL".equals(matchBasis)) {
+            activateNationalRecord(targetGroup);
         }
 
         // Create target material mapping
@@ -363,8 +383,9 @@ public class HarmonizationService {
         result.setGroupId(targetGroup.getGroupId());
         result.setProposedGroupCode(targetGroup.getCommonMaterialCode() != null ? targetGroup.getCommonMaterialCode() : targetGroup.getProvisionalRef());
         result.setRoutingDecision(routing.decision());
-        result.setStatus("AUTO_CONFIRM".equals(routing.decision()) ? "AUTO_HARMONIZED"
-                : ("NOVEL".equals(routing.decision()) ? "NOVEL_SPECIFICATION_REGISTERED" : "REVIEW_REQUIRED"));
+        result.setStatus("AUTO_CONFIRM".equals(routing.decision())
+                ? ("NOVEL".equals(matchBasis) ? "NOVEL_AUTO_HARMONIZED" : "AUTO_HARMONIZED")
+                : "REVIEW_REQUIRED");
 
         // Audit harmonization run (FR9)
         auditService.logEvent(
@@ -523,10 +544,44 @@ public class HarmonizationService {
         return saved;
     }
 
+    /**
+     * A novel material is safe to register without comparison only when its category-specific
+     * identity signature is complete and its basic catalog fields are present.
+     */
+    private boolean isAutoRegisterableNovel(Material material,
+                                            MaterialIdentityService.SignatureResult signature) {
+        if (material == null || signature == null || !signature.complete()) return false;
+        if (material.getCategory() == null || isBlank(material.getDescription())
+                || isBlank(material.getSpecification()) || isBlank(material.getUnitOfMeasure())) {
+            return false;
+        }
+        String category = material.getCategory().getName();
+        return category != null
+                && !"GENERAL".equalsIgnoreCase(category)
+                && !"GENERAL_MRO".equalsIgnoreCase(category);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private synchronized void activateNationalRecord(MaterialGroup group) {
+        if (group == null || "ACTIVE".equals(group.getStatus())) return;
+        long serial = identityService.allocateReferenceSerial(group.getCategory());
+        String nationalCode = identityService.generateCatalogReference(group.getCategory(), serial);
+        group.setCodeSerial(serial);
+        group.setCommonMaterialCode(nationalCode);
+        group.setStatus("ACTIVE");
+        groupRepository.saveAndFlush(group);
+        auditService.logEvent(null, "NATIONAL_CODE_ASSIGNED", "MATERIAL_GROUP", group.getGroupId(),
+                "status: PROPOSED", "status: ACTIVE, nationalMaterialCode: " + nationalCode
+                        + ", assignment: automatic novel registration");
+    }
+
     private RoutingEvidence route(Material target, MatchCandidateResultDto topMatch, String relationship,
                                   double score, double secondBestScore, double margin,
                                   List<String> criticalConflicts, boolean duplicateMerge,
-                                  boolean approvedCandidate) {
+                                  boolean approvedCandidate, boolean autoRegisterableNovel) {
         MatchingPolicy policy = target.getCategory() == null ? null
                 : matchingPolicyRepository.findByCategory_CategoryId(target.getCategory().getCategoryId()).orElse(null);
         double autoThreshold = policy != null ? policy.getAutoConfirmThreshold().doubleValue() : 0.85;
@@ -544,7 +599,7 @@ public class HarmonizationService {
                 || "VARIANT".equalsIgnoreCase(relationship)) {
             decision = "REVIEW_REQUIRED";
         } else {
-            decision = "NOVEL";
+            decision = autoRegisterableNovel ? "AUTO_CONFIRM" : "REVIEW_REQUIRED";
         }
         String modelVersion = topMatch.getModelVersion() != null
                 ? topMatch.getModelVersion() : "hybrid-rf-1.0";
@@ -612,8 +667,13 @@ public class HarmonizationService {
     private record RoutingEvidence(String decision, String modelVersion, double secondBestScore,
                                    double margin, Map<String, Double> scoreBreakdown,
                                    List<String> criticalConflicts) {
-        static RoutingEvidence novel() {
-            return new RoutingEvidence("NOVEL", "hybrid-rf-1.0", 0.0, 0.0,
+        static RoutingEvidence autoRegisteredNovel() {
+            return new RoutingEvidence("AUTO_CONFIRM", "novel-identity-1.0", 0.0, 1.0,
+                    Map.of("completeNovelIdentity", 1.0), List.of());
+        }
+
+        static RoutingEvidence incompleteNovelReview() {
+            return new RoutingEvidence("REVIEW_REQUIRED", "novel-identity-1.0", 0.0, 0.0,
                     Map.of("modelProbability", 0.0), List.of());
         }
     }

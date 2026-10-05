@@ -137,8 +137,8 @@ class HarmonizationServiceTest {
     }
 
     @Test
-    @DisplayName("Harmonize material when no candidates exist creates provisional novel group")
-    void testHarmonizeMaterial_NoCandidates() {
+    @DisplayName("Incomplete novel material is routed to review")
+    void testHarmonizeMaterial_IncompleteNovelRequiresReview() {
         when(identityService.computeAttributeSignature(any(), any(), any()))
                 .thenReturn(new MaterialIdentityService.SignatureResult("sig_pipe_novel", false));
 
@@ -162,8 +162,44 @@ class HarmonizationServiceTest {
         HarmonizationResultDto result = harmonizationService.harmonizeMaterial(100L);
 
         assertNotNull(result);
-        assertEquals("NOVEL_SPECIFICATION_REGISTERED", result.getStatus());
-        assertEquals("NOVEL", result.getRoutingDecision());
+        assertEquals("REVIEW_REQUIRED", result.getStatus());
+        assertEquals("REVIEW_REQUIRED", result.getRoutingDecision());
+    }
+
+    @Test
+    @DisplayName("Complete novel material receives a National Material Code without review")
+    void testHarmonizeMaterial_CompleteNovelAutoRegisters() {
+        queryMaterial.setSpecification("ASTM A106 GR B");
+        queryMaterial.setUnitOfMeasure("MTR");
+        when(identityService.computeAttributeSignature(any(), any(), any()))
+                .thenReturn(new MaterialIdentityService.SignatureResult("sig_pipe_novel_complete", true));
+        when(materialRepository.findById(100L)).thenReturn(Optional.of(queryMaterial));
+        when(groupRepository.findByAttributeSignature("sig_pipe_novel_complete"))
+                .thenReturn(Optional.empty());
+        when(materialRepository.findRelevantCandidates(anyLong(), anyLong(), anyString(), any(), any()))
+                .thenReturn(Collections.emptyList());
+        when(identityService.generateDraftReference()).thenReturn("DRAFT-000000000503");
+        when(identityService.allocateReferenceSerial(any())).thenReturn(1L);
+        when(identityService.generateCatalogReference(any(), eq(1L))).thenReturn("NUMM-401407-000001");
+        when(groupRepository.save(any(MaterialGroup.class))).thenAnswer(invocation -> {
+            MaterialGroup group = invocation.getArgument(0);
+            group.setGroupId(503L);
+            return group;
+        });
+        when(groupRepository.saveAndFlush(any(MaterialGroup.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(mappingRepository.save(any(MaterialMapping.class))).thenAnswer(invocation -> {
+            MaterialMapping mapping = invocation.getArgument(0);
+            mapping.setMappingId(1003L);
+            return mapping;
+        });
+
+        HarmonizationResultDto result = harmonizationService.harmonizeMaterial(100L);
+
+        assertEquals("NOVEL_AUTO_HARMONIZED", result.getStatus());
+        assertEquals("AUTO_CONFIRM", result.getRoutingDecision());
+        assertEquals("NUMM-401407-000001", result.getProposedGroupCode());
+        verify(groupRepository).saveAndFlush(argThat(group -> "ACTIVE".equals(group.getStatus())
+                && "NUMM-401407-000001".equals(group.getCommonMaterialCode())));
     }
 
     @Test
