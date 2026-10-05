@@ -83,7 +83,9 @@ public class MaterialMappingController {
             if (!assignedCats.isEmpty()) {
                 mappings = mappingRepository.findByStatusAndCategories(status.toUpperCase(), assignedCats, pageable);
             } else {
-                mappings = Page.empty(pageable);
+                // No assignments means this is the general Senior Reviewer account.
+                // It owns the complete technical queue rather than an empty queue.
+                mappings = mappingRepository.findByStatus(status.toUpperCase(), pageable);
             }
         } else {
             mappings = mappingRepository.findByStatus(status.toUpperCase(), pageable);

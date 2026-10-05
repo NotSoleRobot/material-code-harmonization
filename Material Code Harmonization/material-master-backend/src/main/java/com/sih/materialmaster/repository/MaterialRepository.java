@@ -71,7 +71,7 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
     List<CategoryCount> countByCategory();
 
     @Query("SELECT c.name AS cpseName, COUNT(DISTINCT m.materialId) AS materialCount, " +
-           "COUNT(DISTINCT CASE WHEN mm.status IN ('PENDING','CONFIRMED') THEN m.materialId ELSE NULL END) AS mappedCount " +
+           "COUNT(DISTINCT CASE WHEN mm.status = 'CONFIRMED' THEN m.materialId ELSE NULL END) AS mappedCount " +
            "FROM Material m JOIN m.cpse c LEFT JOIN MaterialMapping mm ON mm.material = m " +
            "GROUP BY c.cpseId, c.name ORDER BY c.name")
     List<CpseMappingCount> countMaterialsAndMappingsByCpse();

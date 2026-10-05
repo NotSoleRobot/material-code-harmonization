@@ -30,7 +30,7 @@ class AnalyticsServiceTest {
     @Test
     void dashboardUsesAggregateCountsAndReviewedVolumeForDeduplicationRate() {
         when(materialRepository.count()).thenReturn(12L);
-        when(groupRepository.count()).thenReturn(4L);
+        when(groupRepository.countByStatus("ACTIVE")).thenReturn(1L);
         when(mappingRepository.countByStatus("PENDING")).thenReturn(2L);
         when(mappingRepository.countByStatus("CONFIRMED")).thenReturn(6L);
         when(mappingRepository.countByStatus("REJECTED")).thenReturn(2L);
@@ -51,6 +51,7 @@ class AnalyticsServiceTest {
 
         DashboardStatsDto result = analyticsService.getDashboardStats();
 
+        assertEquals(1L, result.getTotalUniqueGroups());
         assertEquals(37.5, result.getDeduplicationRate());
         assertEquals(7L, result.getCategoryDistribution().get("PIPE"));
         assertEquals(5L, result.getCpseBreakdown().get(0).getMappedCount());

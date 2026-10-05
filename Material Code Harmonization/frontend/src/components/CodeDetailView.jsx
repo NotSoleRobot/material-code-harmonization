@@ -206,7 +206,7 @@ export function CodeDetailView() {
                       <span className="badge badge-accent font-bold">{rg.relationType}</span>
                     </td>
                     <td>
-                      <CodeChip code={rg.provisionalRef} provisional size="sm" />
+                      <CodeChip code={rg.commonMaterialCode || rg.provisionalRef} size="sm" />
                     </td>
                     <td>{rg.description}</td>
                     <td className="text-right">

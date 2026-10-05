@@ -32,7 +32,7 @@ public class AnalyticsService {
     @Transactional(readOnly = true)
     public DashboardStatsDto getDashboardStats() {
         long totalMaterials = materialRepository.count();
-        long totalGroups = groupRepository.count();
+        long totalGroups = groupRepository.countByStatus("ACTIVE");
         long pendingCount = mappingRepository.countByStatus("PENDING");
         long confirmedCount = mappingRepository.countByStatus("CONFIRMED");
         long rejectedCount = mappingRepository.countByStatus("REJECTED");

@@ -28,7 +28,6 @@ export function CodeChip({ code, size = "md", categoryPath = null }) {
       title={`${t("catalog.referenceBadge")} - ${t("common.copyCode")}`}
       aria-label={`${code} ${copied ? t("common.copied") : t("common.copyCode")}`}
     >
-      <span className="code-prefix">REF</span>
       <span className="code-value">{code}</span>
       <span className="copy-icon" aria-hidden="true">
         {copied ? <Check size={size === "lg" ? 14 : 12} color="var(--success)" /> : <Copy size={size === "lg" ? 14 : 12} />}
