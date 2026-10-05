@@ -777,27 +777,43 @@ export function IngestionWizard() {
                     </div>
                   )}
 
-                  {/* Result KPI Cards */}
+                  {/* Result KPI Cards: input accounting and routing outcomes are intentionally separate. */}
                   <div className="ingest-result-grid" style={{ marginBottom: "1.5rem" }}>
                     <div className="ingest-result-card result-auto">
-                      <div className="result-count">{jobResult.importedItems ?? 0}</div>
-                      <div className="result-label">New Records</div>
-                      <div className="result-desc">Added to the material inventory</div>
+                      <div className="result-count">{jobResult.totalItems ?? rows.length ?? 0}</div>
+                      <div className="result-label">Uploaded Records</div>
+                      <div className="result-desc">Total rows received in this batch</div>
                     </div>
                     <div className="ingest-result-card result-review">
                       <div className="result-count">{jobResult.alreadyHarmonized ?? 0}</div>
                       <div className="result-label">Already Harmonized</div>
-                      <div className="result-desc">Duplicates safely left unchanged</div>
+                      <div className="result-desc">Existing source codes left unchanged</div>
                     </div>
                     <div className="ingest-result-card result-review">
-                      <div className="result-count">{jobResult.queuedForHarmonization ?? 0}</div>
-                      <div className="result-label">Sent to Harmonization</div>
-                      <div className="result-desc">Only records needing processing</div>
+                      <div className="result-count">{jobResult.skippedItems ?? 0}</div>
+                      <div className="result-label">Not Processed</div>
+                      <div className="result-desc">Invalid or incomplete rows</div>
+                    </div>
+                  </div>
+
+                  <div className="text-sm font-semibold text-primary" style={{ marginBottom: "0.65rem" }}>
+                    Harmonization outcomes ({jobResult.queuedForHarmonization ?? 0} processed)
+                  </div>
+                  <div className="ingest-result-grid" style={{ marginBottom: "1.5rem" }}>
+                    <div className="ingest-result-card result-auto">
+                      <div className="result-count">{jobResult.autoHarmonized ?? 0}</div>
+                      <div className="result-label">Directly Harmonized</div>
+                      <div className="result-desc">Matched to an approved National Material Code</div>
                     </div>
                     <div className="ingest-result-card result-novel">
                       <div className="result-count">{jobResult.pendingReview ?? 0}</div>
                       <div className="result-label">Review Required</div>
-                      <div className="result-desc">Proposals awaiting a technical decision</div>
+                      <div className="result-desc">Uncertain matches awaiting Senior Reviewer</div>
+                    </div>
+                    <div className="ingest-result-card result-review">
+                      <div className="result-count">{jobResult.distinctMaterials ?? 0}</div>
+                      <div className="result-label">New Proposals</div>
+                      <div className="result-desc">Novel materials awaiting approval and code assignment</div>
                     </div>
                   </div>
 

@@ -48,7 +48,7 @@ public class CodeController {
                 .or(() -> groupRepository.findByProvisionalRef(clean))
                 .orElseThrow(() -> new IllegalArgumentException("No material group found for catalog reference: " + code));
 
-        if (!"ACTIVE".equals(group.getStatus()) && !"PROPOSED".equals(group.getStatus()) && !"SUPERSEDED".equals(group.getStatus())) {
+        if (!"ACTIVE".equals(group.getStatus()) && !"SUPERSEDED".equals(group.getStatus())) {
             throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Code not found: " + code);
         }
         return ResponseEntity.ok(toDetailsDto(group, viewer));
@@ -67,7 +67,8 @@ public class CodeController {
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserPrincipal viewer) {
         String query = (q != null && !q.isBlank()) ? q.trim() : "";
-        String effectiveStatus = ("ALL".equalsIgnoreCase(status)) ? null : (status != null && !status.isBlank() ? status.trim().toUpperCase() : null);
+        String effectiveStatus = (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status))
+                ? "ACTIVE" : status.trim().toUpperCase();
         String effectiveCategory = (category == null || category.isBlank() || "ALL".equalsIgnoreCase(category))
                 ? null : category.trim();
         var pageable = PageRequest.of(
@@ -157,9 +158,8 @@ public class CodeController {
         Set<String> distinctCpses = new HashSet<>();
         List<NationalCodeDetailsDto.MemberMaterialDto> members = new ArrayList<>();
 
-        boolean isProposed = "PROPOSED".equals(group.getStatus());
         for (MaterialMapping mm : mappings) {
-            if (!"CONFIRMED".equals(mm.getStatus()) && !(isProposed && "PENDING".equals(mm.getStatus()))) continue;
+            if (!"CONFIRMED".equals(mm.getStatus())) continue;
             Material m = mm.getMaterial();
             if (viewer != null && "OPERATOR".equals(viewer.getRole())
                     && (m.getCpse() == null || !Objects.equals(viewer.getCpseId(), m.getCpse().getCpseId()))) continue;
@@ -189,7 +189,7 @@ public class CodeController {
         List<NationalCodeDetailsDto.RelatedGroupDto> relatedList = new ArrayList<>();
         for (GroupRelation gr : relations) {
             MaterialGroup other = gr.getGroupA().getGroupId().equals(group.getGroupId()) ? gr.getGroupB() : gr.getGroupA();
-            if (!"ACTIVE".equals(other.getStatus()) && !"PROPOSED".equals(other.getStatus())) continue;
+            if (!"ACTIVE".equals(other.getStatus())) continue;
             NationalCodeDetailsDto.RelatedGroupDto rDto = new NationalCodeDetailsDto.RelatedGroupDto();
             rDto.setGroupId(other.getGroupId());
             rDto.setCommonMaterialCode(other.getCommonMaterialCode());

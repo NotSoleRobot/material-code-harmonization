@@ -39,7 +39,7 @@ public interface MaterialGroupRepository extends JpaRepository<MaterialGroup, Lo
     Page<MaterialGroup> searchGroups(@Param("query") String query, @Param("status") String status,
                                      @Param("category") String category, Pageable pageable);
 
-    @Query("SELECT DISTINCT g.category.name FROM MaterialGroup g WHERE g.category IS NOT NULL ORDER BY g.category.name")
+    @Query("SELECT DISTINCT g.category.name FROM MaterialGroup g WHERE g.category IS NOT NULL AND g.status = 'ACTIVE' ORDER BY g.category.name")
     List<String> findCatalogCategoryNames();
 
 }

@@ -13,6 +13,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.UUID;
 
 /** Builds stable internal identities for candidate material groups. */
 @Service
@@ -27,27 +28,24 @@ public class MaterialIdentityService {
 
     /** Atomically allocates an internal reference number within one commodity class. */
     @Transactional
-    public long allocateReferenceSerial(MaterialCategory category) {
-        String commodity = commodityCode(category);
+    public synchronized long allocateReferenceSerial(MaterialCategory category) {
         Long categoryId = category != null ? category.getCategoryId() : null;
-        Object result = entityManager.createNativeQuery(
-                        "INSERT INTO material_code_serial (commodity_code, next_serial) " +
-                        "VALUES (:commodity, (SELECT COALESCE(MAX(code_serial), 0) + 2 FROM material_group " +
-                        "WHERE (:categoryId IS NULL AND category_id IS NULL) OR category_id = :categoryId)) " +
-                        "ON CONFLICT (commodity_code) DO UPDATE SET next_serial = " +
-                        "GREATEST(material_code_serial.next_serial, " +
-                        "(SELECT COALESCE(MAX(code_serial), 0) + 1 FROM material_group " +
-                        "WHERE (:categoryId IS NULL AND category_id IS NULL) OR category_id = :categoryId)) + 1 " +
-                        "RETURNING next_serial - 1")
-                .setParameter("commodity", commodity)
+        Long current = entityManager.createQuery(
+                        "SELECT COALESCE(MAX(g.codeSerial), 0) FROM MaterialGroup g " +
+                        "WHERE (:categoryId IS NULL AND g.category IS NULL) " +
+                        "OR g.category.categoryId = :categoryId", Long.class)
                 .setParameter("categoryId", categoryId)
                 .getSingleResult();
-        if (result instanceof Number number) return number.longValue();
-        throw new IllegalStateException("Unable to allocate catalog reference for commodity " + commodity);
+        return (current == null ? 0L : current) + 1L;
     }
 
     public String generateCatalogReference(MaterialCategory category, long serial) {
-        return String.format("CAT-%s-%06d", commodityCode(category), serial);
+        return String.format("NUMM-%s-%06d", commodityCode(category), serial);
+    }
+
+    /** Review-only identifier. It is deliberately not presented as a National Material Code. */
+    public String generateDraftReference() {
+        return "DRAFT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
     }
 
     private String commodityCode(MaterialCategory category) {

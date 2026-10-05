@@ -110,12 +110,15 @@ class HarmonizationServiceTest {
         FindMatchesResponse findResponse = new FindMatchesResponse(List.of(candidateResult));
         when(matchingClient.findMatches(any(), anyList(), eq(5))).thenReturn(findResponse);
 
-        when(identityService.generateCatalogReference(any(), anyLong())).thenReturn("CAT-401407-000500");
-
         MaterialGroup savedGroup = new MaterialGroup();
         savedGroup.setGroupId(500L);
-        savedGroup.setProvisionalRef("CAT-401407-000500");
-        when(groupRepository.save(any(MaterialGroup.class))).thenReturn(savedGroup);
+        savedGroup.setProvisionalRef("DRAFT-000000000500");
+        savedGroup.setCommonMaterialCode("NUMM-401407-000500");
+        savedGroup.setStatus("ACTIVE");
+        MaterialMapping candidateMapping = new MaterialMapping();
+        candidateMapping.setStatus("CONFIRMED");
+        candidateMapping.setGroup(savedGroup);
+        when(mappingRepository.findActiveByMaterialId(200L)).thenReturn(Optional.of(candidateMapping));
 
         MaterialMapping savedMapping = new MaterialMapping();
         savedMapping.setMappingId(999L);
@@ -128,7 +131,7 @@ class HarmonizationServiceTest {
         assertNotNull(result);
         assertEquals("AUTO_HARMONIZED", result.getStatus());
         assertEquals("AUTO_CONFIRM", result.getRoutingDecision());
-        assertEquals("CAT-401407-000500", result.getProposedGroupCode());
+        assertEquals("NUMM-401407-000500", result.getProposedGroupCode());
         assertEquals(0.92, result.getConfidenceScore());
         assertEquals("HIGH", result.getConfidenceTier());
     }
@@ -143,11 +146,11 @@ class HarmonizationServiceTest {
         when(materialRepository.findRelevantCandidates(anyLong(), anyLong(), anyString(), any(), any()))
                 .thenReturn(Collections.emptyList());
 
-        when(identityService.generateCatalogReference(any(), anyLong())).thenReturn("CAT-401407-000501");
+        when(identityService.generateDraftReference()).thenReturn("DRAFT-000000000501");
 
         MaterialGroup savedGroup = new MaterialGroup();
         savedGroup.setGroupId(501L);
-        savedGroup.setProvisionalRef("CAT-401407-000501");
+        savedGroup.setProvisionalRef("DRAFT-000000000501");
         when(groupRepository.save(any(MaterialGroup.class))).thenReturn(savedGroup);
 
         MaterialMapping savedMapping = new MaterialMapping();
@@ -180,10 +183,10 @@ class HarmonizationServiceTest {
         when(matchingClient.findMatches(any(), anyList(), eq(5)))
                 .thenReturn(new FindMatchesResponse(List.of(uncertain)));
 
-        when(identityService.generateCatalogReference(any(), anyLong())).thenReturn("CAT-401407-000502");
+        when(identityService.generateDraftReference()).thenReturn("DRAFT-000000000502");
         MaterialGroup group = new MaterialGroup();
         group.setGroupId(502L);
-        group.setProvisionalRef("CAT-401407-000502");
+        group.setProvisionalRef("DRAFT-000000000502");
         when(groupRepository.save(any(MaterialGroup.class))).thenReturn(group);
         when(mappingRepository.save(any(MaterialMapping.class))).thenAnswer(invocation -> {
             MaterialMapping mapping = invocation.getArgument(0);
@@ -226,7 +229,9 @@ class HarmonizationServiceTest {
 
         MaterialGroup existingGroup = new MaterialGroup();
         existingGroup.setGroupId(777L);
-        existingGroup.setProvisionalRef("CAT-401407-000777");
+        existingGroup.setProvisionalRef("DRAFT-000000000777");
+        existingGroup.setCommonMaterialCode("NUMM-401407-000777");
+        existingGroup.setStatus("ACTIVE");
         existingGroup.setAttributeSignature("sig_exact_hash_123");
 
         when(groupRepository.findByAttributeSignature("sig_exact_hash_123")).thenReturn(Optional.of(existingGroup));
@@ -245,7 +250,7 @@ class HarmonizationServiceTest {
         assertEquals(1.0, result.getConfidenceScore());
         assertEquals("HIGH", result.getConfidenceTier());
         assertEquals("AUTO_CONFIRM", result.getRoutingDecision());
-        assertEquals("CAT-401407-000777", result.getProposedGroupCode());
+        assertEquals("NUMM-401407-000777", result.getProposedGroupCode());
     }
 
     @Test

@@ -23,18 +23,21 @@ public class GovernanceService {
     private final AuditService auditService;
     private final ReviewerAssignmentRepository reviewerAssignmentRepository;
     private final MatchingFeedbackRepository matchingFeedbackRepository;
+    private final MaterialIdentityService identityService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public GovernanceService(MaterialMappingRepository mappingRepository,
                              MaterialGroupRepository groupRepository,
                              AuditService auditService,
                              ReviewerAssignmentRepository reviewerAssignmentRepository,
-                             MatchingFeedbackRepository matchingFeedbackRepository) {
+                             MatchingFeedbackRepository matchingFeedbackRepository,
+                             MaterialIdentityService identityService) {
         this.mappingRepository = mappingRepository;
         this.groupRepository = groupRepository;
         this.auditService = auditService;
         this.reviewerAssignmentRepository = reviewerAssignmentRepository;
         this.matchingFeedbackRepository = matchingFeedbackRepository;
+        this.identityService = identityService;
     }
 
     /**
@@ -74,6 +77,10 @@ public class GovernanceService {
         mapping.setReviewedAt(LocalDateTime.now());
         mapping.setDecisionNotes(notes);
         MaterialMapping savedMapping = mappingRepository.save(mapping);
+
+        if ("CONFIRMED".equals(targetStatus)) {
+            activateNationalRecord(savedMapping.getGroup(), actor);
+        }
 
         MatchingFeedback feedback = new MatchingFeedback();
         feedback.setMapping(savedMapping);
@@ -118,6 +125,18 @@ public class GovernanceService {
         }
 
         return savedMapping;
+    }
+
+    private synchronized void activateNationalRecord(MaterialGroup group, User actor) {
+        if (group == null || "ACTIVE".equals(group.getStatus())) return;
+        long serial = identityService.allocateReferenceSerial(group.getCategory());
+        String nationalCode = identityService.generateCatalogReference(group.getCategory(), serial);
+        group.setCodeSerial(serial);
+        group.setCommonMaterialCode(nationalCode);
+        group.setStatus("ACTIVE");
+        groupRepository.saveAndFlush(group);
+        auditService.logEvent(actor, "NATIONAL_CODE_ASSIGNED", "MATERIAL_GROUP", group.getGroupId(),
+                "status: PROPOSED", "status: ACTIVE, nationalMaterialCode: " + nationalCode);
     }
 
     /**
@@ -187,8 +206,8 @@ public class GovernanceService {
         List<BulkApprovalFailure> skipped = new ArrayList<>();
         for (MaterialMapping mm : candidates) {
             // Server-side check: Skip if explanation has identity-critical conflicts (D4)
-            if (hasIdentityCriticalConflicts(mm.getExplanationJson())) {
-                skipped.add(new BulkApprovalFailure(mm.getMappingId(), "Identity-critical conflict requires individual review"));
+            if (hasCriticalConflicts(mm.getExplanationJson())) {
+                skipped.add(new BulkApprovalFailure(mm.getMappingId(), "Critical attribute conflict requires individual review"));
                 continue;
             }
             try {
@@ -217,7 +236,7 @@ public class GovernanceService {
     public record BulkApprovalResult(int eligibleCount, int approvedCount, int skippedCount,
                                      List<BulkApprovalFailure> skipped) {}
 
-    private boolean hasIdentityCriticalConflicts(String explanationJson) {
+    private boolean hasCriticalConflicts(String explanationJson) {
         if (explanationJson == null || explanationJson.isBlank()) return false;
         try {
             JsonNode root = objectMapper.readTree(explanationJson);
@@ -225,7 +244,8 @@ public class GovernanceService {
             if (conflicts != null && conflicts.isArray()) {
                 for (JsonNode c : conflicts) {
                     String text = c.asText("");
-                    if (text.toLowerCase().contains("identity_critical")) {
+                    if (text.toLowerCase().contains("identity_critical")
+                            || text.toLowerCase().contains("variant_critical")) {
                         return true;
                     }
                 }
@@ -249,8 +269,8 @@ public class GovernanceService {
      */
     @Transactional
     public MaterialMapping supersedeMapping(Long mappingId, User admin, String newDecision, String mandatoryReason) {
-        if (!"ADMIN".equalsIgnoreCase(admin.getRole()) && !"SENIOR_REVIEWER".equalsIgnoreCase(admin.getRole())) {
-            throw new AccessDeniedException("Only ADMIN or SENIOR_REVIEWER can supersede a decided mapping.");
+        if (!"ADMIN".equalsIgnoreCase(admin.getRole())) {
+            throw new AccessDeniedException("Only ADMIN can supersede a decided mapping.");
         }
         if (mandatoryReason == null || mandatoryReason.trim().length() < 5) {
             throw new IllegalArgumentException("A mandatory justification note (at least 5 characters) is required to supersede a decided mapping.");
@@ -285,6 +305,7 @@ public class GovernanceService {
         replacement.setDecisionNotes("OVERRIDE: " + mandatoryReason);
         replacement.setSupersedesMapping(mapping);
         replacement = mappingRepository.saveAndFlush(replacement);
+        if ("CONFIRMED".equals(targetStatus)) activateNationalRecord(replacement.getGroup(), admin);
         mapping.setSupersededByMapping(replacement);
         mappingRepository.save(mapping);
 

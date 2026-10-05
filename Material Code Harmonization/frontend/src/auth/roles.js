@@ -19,6 +19,13 @@ export function rolesFor(route) {
   return item.roles;
 }
 
+export function canAccessRoute(role, pathname) {
+  const normalizedRole = role?.toUpperCase();
+  if (!normalizedRole || !pathname) return false;
+  const item = NAV.find(({ to }) => pathname === to || pathname.startsWith(`${to}/`));
+  return item ? item.roles.includes(normalizedRole) : false;
+}
+
 /**
  * Returns the canonical landing page for a given role upon login.
  */

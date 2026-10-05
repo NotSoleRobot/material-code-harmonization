@@ -161,8 +161,12 @@ public class HarmonizationService {
             log.warn("Category schema lookup failed for {}; using fallback schema: {}", categoryName, ex.getMessage());
             schema = fallbackCategorySchema(categoryName);
         }
-        List<String> identityKeys = (schema != null && schema.getIdentityCriticalAttributes() != null)
-                ? schema.getIdentityCriticalAttributes() : List.of("material");
+        List<String> identityKeys = new ArrayList<>();
+        if (schema != null) {
+            identityKeys.addAll(schema.getIdentityCriticalAttributes());
+            if (schema.getVariantCritical() != null) identityKeys.addAll(schema.getVariantCritical());
+        }
+        if (identityKeys.isEmpty()) identityKeys.add("material");
 
         // Compute Attribute Signature
         MaterialIdentityService.SignatureResult sigResult = identityService.computeAttributeSignature(categoryName, identityKeys, targetAttrs);
@@ -181,19 +185,21 @@ public class HarmonizationService {
             Optional<MaterialGroup> sigGroup = groupRepository.findByAttributeSignature(sigResult.signature());
             if (sigGroup.isPresent()) {
                 MaterialGroup group = sigGroup.get();
+                boolean approvedNationalRecord = "ACTIVE".equals(group.getStatus())
+                        && group.getCommonMaterialCode() != null;
                 String explanation = "{\"checks\":[\"Exact deterministic attribute signature match\"],\"warnings\":[],\"conflicts\":[]}";
-                RoutingEvidence routing = new RoutingEvidence("AUTO_CONFIRM", "deterministic-signature-1.0",
+                RoutingEvidence routing = new RoutingEvidence(approvedNationalRecord ? "AUTO_CONFIRM" : "REVIEW_REQUIRED", "deterministic-signature-1.0",
                         0.0, 1.0, Map.of("deterministicSignature", 1.0), List.of());
                 MaterialMapping mapping = createOrUpdateMapping(target, group, 1.0, "HIGH", explanation,
                         "DETERMINISTIC_SIGNATURE", routing);
 
-                result.setStatus("DETERMINISTIC_MATCH");
+                result.setStatus(approvedNationalRecord ? "DETERMINISTIC_MATCH" : "REVIEW_REQUIRED");
                 result.setGroupId(group.getGroupId());
                 result.setMappingId(mapping.getMappingId());
-                result.setProposedGroupCode(group.getCommonMaterialCode() != null ? group.getCommonMaterialCode() : group.getProvisionalRef());
+                result.setProposedGroupCode(approvedNationalRecord ? group.getCommonMaterialCode() : group.getProvisionalRef());
                 result.setConfidenceScore(1.0);
                 result.setConfidenceTier("HIGH");
-                result.setRoutingDecision("AUTO_CONFIRM");
+                result.setRoutingDecision(approvedNationalRecord ? "AUTO_CONFIRM" : "REVIEW_REQUIRED");
                 result.setMatches(Collections.emptyList());
 
                 auditService.logEvent(null, "HARMONIZATION_RUN", "MATERIAL", target.getMaterialId(), null,
@@ -306,19 +312,23 @@ public class HarmonizationService {
         // =========================================================================
         boolean isDuplicateMerge = ("EXACT_DUPLICATE".equalsIgnoreCase(rel) || "NEAR_DUPLICATE".equalsIgnoreCase(rel)) && score >= 0.60;
         boolean isEquivalentOrVariant = ("FUNCTIONALLY_EQUIVALENT".equalsIgnoreCase(rel) || "VARIANT".equalsIgnoreCase(rel)) && score >= 0.60;
-        RoutingEvidence routing = route(target, topMatch, rel, score, secondBestScore, margin,
-                criticalConflicts, isDuplicateMerge);
-
         MaterialGroup targetGroup = null;
         String matchBasis = "NOVEL";
+        boolean approvedCandidate = false;
 
         if (isDuplicateMerge && matchedEntity != null) {
             Optional<MaterialMapping> candMapping = mappingRepository.findActiveByMaterialId(matchedEntity.getMaterialId());
             if (candMapping.isPresent() && candMapping.get().getGroup() != null) {
                 targetGroup = candMapping.get().getGroup();
                 matchBasis = "ML_PROPOSED";
+                approvedCandidate = "CONFIRMED".equals(candMapping.get().getStatus())
+                        && "ACTIVE".equals(targetGroup.getStatus())
+                        && targetGroup.getCommonMaterialCode() != null;
             }
         }
+
+        RoutingEvidence routing = route(target, topMatch, rel, score, secondBestScore, margin,
+                criticalConflicts, isDuplicateMerge, approvedCandidate);
 
         if (targetGroup == null) {
             targetGroup = createOrFindGroupForMaterial(target, targetAttrs, sigResult);
@@ -450,9 +460,8 @@ public class HarmonizationService {
         newGroup.setCategory(material.getCategory());
         newGroup.setStatus("PROPOSED");
 
-        long serial = identityService.allocateReferenceSerial(material.getCategory());
-        newGroup.setCodeSerial(serial);
-        newGroup.setProvisionalRef(identityService.generateCatalogReference(material.getCategory(), serial));
+        newGroup.setCodeSerial(null);
+        newGroup.setProvisionalRef(identityService.generateDraftReference());
 
         try {
             return groupRepository.save(newGroup);
@@ -516,7 +525,8 @@ public class HarmonizationService {
 
     private RoutingEvidence route(Material target, MatchCandidateResultDto topMatch, String relationship,
                                   double score, double secondBestScore, double margin,
-                                  List<String> criticalConflicts, boolean duplicateMerge) {
+                                  List<String> criticalConflicts, boolean duplicateMerge,
+                                  boolean approvedCandidate) {
         MatchingPolicy policy = target.getCategory() == null ? null
                 : matchingPolicyRepository.findByCategory_CategoryId(target.getCategory().getCategoryId()).orElse(null);
         double autoThreshold = policy != null ? policy.getAutoConfirmThreshold().doubleValue() : 0.85;
@@ -525,7 +535,7 @@ public class HarmonizationService {
         boolean autoEnabled = policy == null || policy.isAutoConfirmEnabled();
 
         String decision;
-        if (autoEnabled && duplicateMerge && score >= autoThreshold && margin >= minimumMargin
+        if (autoEnabled && approvedCandidate && duplicateMerge && score >= autoThreshold && margin >= minimumMargin
                 && criticalConflicts.isEmpty()) {
             decision = "AUTO_CONFIRM";
         } else if (score >= reviewThreshold || duplicateMerge
@@ -585,7 +595,8 @@ public class HarmonizationService {
         if (result.getCriticalConflicts() != null) return result.getCriticalConflicts();
         if (result.getExplanation() == null || result.getExplanation().getConflicts() == null) return List.of();
         return result.getExplanation().getConflicts().stream()
-                .filter(value -> value != null && value.toLowerCase().contains("identity_critical"))
+                .filter(value -> value != null && (value.toLowerCase().contains("identity_critical")
+                        || value.toLowerCase().contains("variant_critical")))
                 .toList();
     }
 

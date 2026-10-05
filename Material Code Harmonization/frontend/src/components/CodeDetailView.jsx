@@ -46,7 +46,7 @@ export function CodeDetailView() {
     );
   }
 
-  const catalogReference = details.provisionalRef;
+  const catalogReference = details.commonMaterialCode || details.provisionalRef;
 
   return (
     <div className="page-container">

@@ -45,6 +45,6 @@ class MaterialIdentityServiceTest {
         category.setCodeSegment("40");
         category.setCodeFamily("14");
         category.setCodeClass("07");
-        assertEquals("CAT-401407-000042", service.generateCatalogReference(category, 42));
+        assertEquals("NUMM-401407-000042", service.generateCatalogReference(category, 42));
     }
 }

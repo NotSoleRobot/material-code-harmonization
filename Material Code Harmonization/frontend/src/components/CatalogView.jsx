@@ -221,9 +221,9 @@ export function CatalogView() {
               </thead>
               <tbody>
                 {filteredResults.map((group) => {
-                  const code = group.provisionalRef || `GROUP-${group.groupId}`;
+                  const code = group.commonMaterialCode;
                   return (
-                    <tr key={group.provisionalRef || group.commonMaterialCode}>
+                    <tr key={group.commonMaterialCode}>
                       <td>
                         <CodeChip
                           code={code}
@@ -285,7 +285,7 @@ export function CatalogView() {
                       <td>{m.rawDescription}</td>
                       <td>
                         <CodeChip
-                          code={group.provisionalRef}
+                          code={group.commonMaterialCode}
                           size="sm"
                           categoryPath={group.categoryPath}
                         />

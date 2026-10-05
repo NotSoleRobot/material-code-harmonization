@@ -35,6 +35,9 @@ class GovernanceServiceTest {
     @Mock
     private MatchingFeedbackRepository matchingFeedbackRepository;
 
+    @Mock
+    private MaterialIdentityService identityService;
+
     @InjectMocks
     private GovernanceService governanceService;
 
@@ -92,18 +95,20 @@ class GovernanceServiceTest {
     }
 
     @Test
-    @DisplayName("Approve mapping confirms it without changing catalog group lifecycle")
+    @DisplayName("Approve mapping confirms it and assigns the final national code")
     void testDecideMapping_Approve() {
         when(reviewerAssignmentRepository.findCategoryIdsByUserId(anyLong())).thenReturn(java.util.List.of(1L));
         when(mappingRepository.findById(500L)).thenReturn(Optional.of(mapping));
         when(mappingRepository.save(any(MaterialMapping.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(identityService.allocateReferenceSerial(any())).thenReturn(1L);
+        when(identityService.generateCatalogReference(any(), eq(1L))).thenReturn("NUMM-401416-000001");
 
         MaterialMapping approved = governanceService.decideMapping(500L, reviewerIocl, "CONFIRMED", "Verified specification equivalence");
 
         assertNotNull(approved);
         assertEquals("CONFIRMED", approved.getStatus());
-        assertEquals("PROPOSED", group.getStatus());
-        assertNull(group.getCommonMaterialCode());
+        assertEquals("ACTIVE", group.getStatus());
+        assertEquals("NUMM-401416-000001", group.getCommonMaterialCode());
 
         verify(auditService).logEvent(
                 eq(reviewerIocl),
@@ -120,7 +125,7 @@ class GovernanceServiceTest {
     void testDecideMapping_SameCpseReviewerAllowed() {
         User reviewerOngc = new User();
         reviewerOngc.setUserId(1L);
-        reviewerOngc.setName("Pavan ONGC");
+        reviewerOngc.setName("Operator ONGC");
         reviewerOngc.setEmail("operator@ongc.res.in");
         reviewerOngc.setRole("SENIOR_REVIEWER");
         reviewerOngc.setCpse(ongc); // Same as material's CPSE
@@ -128,6 +133,8 @@ class GovernanceServiceTest {
         when(reviewerAssignmentRepository.findCategoryIdsByUserId(anyLong())).thenReturn(java.util.List.of(1L));
         when(mappingRepository.findById(500L)).thenReturn(Optional.of(mapping));
         when(mappingRepository.save(any(MaterialMapping.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(identityService.allocateReferenceSerial(any())).thenReturn(2L);
+        when(identityService.generateCatalogReference(any(), eq(2L))).thenReturn("NUMM-401416-000002");
 
         // Should NOT throw — COI restriction removed
         MaterialMapping approved = governanceService.decideMapping(500L, reviewerOngc, "CONFIRMED", "Self-CPSE approval is fine now");

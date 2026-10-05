@@ -3,7 +3,7 @@ import { useAuth } from "../context/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../services/api";
-import { defaultRouteFor } from "../auth/roles";
+import { canAccessRoute, defaultRouteFor } from "../auth/roles";
 import {
   ShieldCheck,
   AlertCircle,
@@ -49,7 +49,10 @@ export function LoginView() {
     try {
       const response = await login(loginEmail, loginPassword);
       const userRole = response?.user?.role;
-      const target = location.state?.from?.pathname || defaultRouteFor(userRole);
+      const requestedPath = location.state?.from?.pathname;
+      const target = canAccessRoute(userRole, requestedPath)
+        ? requestedPath
+        : defaultRouteFor(userRole);
       navigate(target, { replace: true });
     } catch (err) {
       setError({
